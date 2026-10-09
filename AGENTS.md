@@ -2,7 +2,17 @@ This is an Expo/React Native mobile application. Prioritize mobile-first pattern
 
 ## Additional Instructions
 
+Read the relevant instruction files before editing that area:
+
 - Project structure and feature folder rules: `docs/agent-instructions/project-structure.md`
+- Coding standards and shared code rules: `docs/agent-instructions/coding-standards.md`
+- UI, mobile design, accessibility, and list performance: `docs/agent-instructions/ui-and-design.md`
+- Testing approach and verification: `docs/agent-instructions/testing.md`
+- Dependency, Expo package, and native module policy: `docs/agent-instructions/dependencies.md`
+- Expo Router conventions: `docs/agent-instructions/routing.md`
+- State, data fetching, storage, and side effects: `docs/agent-instructions/state-and-data.md`
+- Environment variables, runtime config, and secrets: `docs/agent-instructions/env-and-secrets.md`
+- Git workflow and worktree safety: `docs/agent-instructions/git-workflow.md`
 
 ## Expo has changed — do not trust your training data
 
