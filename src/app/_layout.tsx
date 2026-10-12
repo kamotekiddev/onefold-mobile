@@ -14,68 +14,64 @@ import { appStore } from "@/lib/services"
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined)
 function Navigation() {
-    const { state } = useApp()
-    const p = usePalette()
-    const scheme = useColorScheme()
-    useEffect(() => {
-        void SplashScreen.hideAsync().catch(() => undefined)
-    }, [])
-    if (state.status !== "ready")
-        return (
-            <Screen title="Onefold">
-                {state.status === "error" ? (
-                    <>
-                        <ErrorMessage
-                            message={
-                                state.error ?? "Unable to load saved data."
-                            }
-                        />
-                        <Button
-                            label="Retry loading"
-                            onPress={() => void appStore.hydrate()}
-                        />
-                    </>
-                ) : (
-                    <LoadingState label="Loading your training space…" />
-                )}
-            </Screen>
-        )
+  const { state } = useApp()
+  const p = usePalette()
+  const scheme = useColorScheme()
+  useEffect(() => {
+    void SplashScreen.hideAsync().catch(() => undefined)
+  }, [])
+  if (state.status !== "ready")
     return (
-        <ThemeProvider
-            value={{
-                ...(scheme === "dark" ? DarkTheme : DefaultTheme),
-                colors: {
-                    ...(scheme === "dark"
-                        ? DarkTheme.colors
-                        : DefaultTheme.colors),
-                    primary: p.accent,
-                    background: p.background,
-                    card: p.surface,
-                    text: p.text,
-                    border: p.border,
-                },
-            }}
-        >
-            <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-            <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Protected guard={!state.data?.session}>
-                    <Stack.Screen name="(auth)" />
-                </Stack.Protected>
-                <Stack.Protected guard={!!state.data?.session}>
-                    <Stack.Screen name="(app)" />
-                </Stack.Protected>
-            </Stack>
-        </ThemeProvider>
+      <Screen title="Onefold">
+        {state.status === "error" ? (
+          <>
+            <ErrorMessage
+              message={state.error ?? "Unable to load saved data."}
+            />
+            <Button
+              label="Retry loading"
+              onPress={() => void appStore.hydrate()}
+            />
+          </>
+        ) : (
+          <LoadingState label="Loading your training space…" />
+        )}
+      </Screen>
     )
+  return (
+    <ThemeProvider
+      value={{
+        ...(scheme === "dark" ? DarkTheme : DefaultTheme),
+        colors: {
+          ...(scheme === "dark" ? DarkTheme.colors : DefaultTheme.colors),
+          primary: p.accent,
+          background: p.background,
+          card: p.surface,
+          text: p.text,
+          border: p.border,
+        },
+      }}
+    >
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={!state.data?.session}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+        <Stack.Protected guard={!!state.data?.session}>
+          <Stack.Screen name="(app)" />
+        </Stack.Protected>
+      </Stack>
+    </ThemeProvider>
+  )
 }
 export default function RootLayout() {
-    return (
-        <GestureHandlerRootView style={{ flex: 1 }}>
-            <SafeAreaProvider>
-                <AppProvider>
-                    <Navigation />
-                </AppProvider>
-            </SafeAreaProvider>
-        </GestureHandlerRootView>
-    )
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AppProvider>
+          <Navigation />
+        </AppProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  )
 }
