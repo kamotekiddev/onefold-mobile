@@ -1,65 +1,25 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+import { Platform, useColorScheme } from 'react-native';
 
-import '@/global.css';
-
-import { Platform } from 'react-native';
-
+/** Global color source. Feature screens and native Expo UI hosts use these tokens. */
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    background: '#F5F7F7', surface: '#FFFFFF', text: '#172526', textSecondary: '#526467',
+    accent: '#006D65', accentText: '#FFFFFF', accentSoft: '#DDF3EE', border: '#CAD8D6',
+    danger: '#AD2F38', dangerSoft: '#FBEAEC', success: '#006D65', disabled: '#758683',
+    backgroundElement: '#EAF0EF', backgroundSelected: '#DDF3EE',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    background: '#101919', surface: '#192525', text: '#EDF5F3', textSecondary: '#AEC2BE',
+    accent: '#72DACA', accentText: '#072D29', accentSoft: '#193D36', border: '#3E5550',
+    danger: '#FFABB0', dangerSoft: '#472A2E', success: '#72DACA', disabled: '#91A39F',
+    backgroundElement: '#22312E', backgroundSelected: '#193D36',
   },
 } as const;
-
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
-
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
-} as const;
-
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export type ThemeColor = keyof typeof Colors.light;
+export function usePalette() { return Colors[useColorScheme() === 'dark' ? 'dark' : 'light']; }
+export const Spacing = { half: 2, one: 4, two: 8, three: 16, four: 24, five: 32, six: 64 } as const;
+export const Radii = { control: 12, card: 18, pill: 28 } as const;
+export const Typography = { title: 30, heading: 20, body: 16, caption: 13 } as const;
+export const Fonts = { sans: Platform.OS === 'ios' ? 'System' : 'sans-serif', mono: Platform.OS === 'ios' ? 'Menlo' : 'monospace' };
+export const BottomTabInset = 0;
+export const MaxContentWidth = 760;
