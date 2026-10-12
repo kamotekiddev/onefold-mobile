@@ -4,23 +4,23 @@ const eslintConfigPrettier = require("eslint-config-prettier")
 const prettierConfig = require("./.prettierrc.json")
 
 module.exports = [
-    {
-        ignores: ["dist/*", ".expo/*", "node_modules/*"],
+  {
+    ignores: ["dist/*", ".expo/*", "node_modules/*"],
+  },
+  ...expoConfig,
+  {
+    plugins: {
+      prettier: eslintPluginPrettier,
     },
-    ...expoConfig,
-    {
-        plugins: {
-            prettier: eslintPluginPrettier,
-        },
-        rules: {
-            "prettier/prettier": ["error", prettierConfig],
-            ...eslintConfigPrettier.rules,
-        },
+    rules: {
+      "prettier/prettier": ["error", prettierConfig],
+      ...eslintConfigPrettier.rules,
     },
-    {
-        files: ["babel.config.js", "eslint.config.js"],
-        languageOptions: {
-            sourceType: "commonjs",
-        },
+  },
+  {
+    files: ["babel.config.js", "eslint.config.js"],
+    languageOptions: {
+      sourceType: "commonjs",
     },
+  },
 ]
