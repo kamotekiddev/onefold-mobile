@@ -1,1 +1,1 @@
-export { ExerciseConfigurationScreen as default } from '@/features/routines';
+export { ExerciseConfigurationScreen as default } from "@/features/routines"

@@ -1,1 +1,1 @@
-export { RoutineDetailsScreen as default } from '@/features/routines';
+export { RoutineDetailsScreen as default } from "@/features/routines"

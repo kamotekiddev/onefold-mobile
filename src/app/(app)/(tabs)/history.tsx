@@ -1,1 +1,1 @@
-export { HistoryScreen as default } from '@/features/history';
+export { HistoryScreen as default } from "@/features/history"

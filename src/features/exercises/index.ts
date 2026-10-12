@@ -1,1 +1,1 @@
-export { ExercisePickerScreen } from './screens/picker';
+export { ExercisePickerScreen } from "./screens/picker"
