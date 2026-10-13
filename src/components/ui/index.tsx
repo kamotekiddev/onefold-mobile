@@ -18,7 +18,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { SafeAreaView, type Edge } from "react-native-safe-area-context"
 
 import {
   MaxContentWidth,
@@ -28,6 +28,8 @@ import {
 } from "@/constants/theme"
 
 export { usePalette } from "@/constants/theme"
+
+const defaultScreenEdges: Edge[] = ["left", "right", "bottom"]
 
 export function AppText({
   children,
@@ -67,11 +69,13 @@ export function Screen({
   scroll = true,
   title,
   subtitle,
+  safeAreaEdges = defaultScreenEdges,
 }: {
   children: ReactNode
   scroll?: boolean
   title?: string
   subtitle?: string
+  safeAreaEdges?: Edge[]
 }) {
   const p = usePalette()
   const header =
@@ -85,7 +89,7 @@ export function Screen({
     ) : null
   return (
     <SafeAreaView
-      edges={["left", "right", "bottom"]}
+      edges={safeAreaEdges}
       style={[styles.flex, { backgroundColor: p.background }]}
     >
       <KeyboardAvoidingView

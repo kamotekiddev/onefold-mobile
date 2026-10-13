@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "/sign-in": {
+      "targetKind": "existing-ui",
+      "projectId": "f6c32b97-bd84-415f-ab7c-3d9a61bd2ca4",
+      "baselineDraftId": "32d6866d-2d0e-4b44-822c-c62452877ab0",
+      "activeDraftId": "32d6866d-2d0e-4b44-822c-c62452877ab0",
+      "designSystemPath": ".superdesign/design-system.md",
+      "referenceIds": [],
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "src/app/_layout.tsx",
+        "src/app/(auth)/_layout.tsx",
+        "src/app/(auth)/sign-in.tsx",
+        "src/features/auth/screens/auth-screen.tsx",
+        "src/components/ui/index.tsx",
+        "src/constants/theme.ts"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "99901b8de953b1b964162dfd6c6cdfc439958cb1308319676e37145dc05b46ba",
+        "src/app/_layout.tsx": "bcd35bf44c34c10d59b195d2b0789fc9c693c273395ff187c4c884590c4c5e1c",
+        "src/app/(auth)/_layout.tsx": "f6bc2b713efb81a0b2a38ec60f8da9b53469094500ab39593dd09ca653cb1b4c",
+        "src/app/(auth)/sign-in.tsx": "d6cb6f1f4524ad1d5069e82490976772ba270cc99375bdc5a2f338a73d64899f",
+        "src/features/auth/screens/auth-screen.tsx": "3badab26ff24516aecfc8fb5df3e8ee1817c21f5d66e7bd77a9fb1a27a169e6e",
+        "src/components/ui/index.tsx": "34cc82af2f0b0469b8e2f91f0726673e8028f99fcba177c61dce980e2115b5b3",
+        "src/constants/theme.ts": "b8821677169237319a7de4b6fddc6fcc6cc1247b619e922c6a576aca9fe47b06"
+      },
+      "components": [],
+      "drafts": {
+        "32d6866d-2d0e-4b44-822c-c62452877ab0": {
+          "title": "Onefold Sign In - Compact",
+          "visualDirection": "compact modern mobile auth with slim controls and social sign-in placeholders",
+          "currentVersion": 3
+        }
+      },
+      "updatedAt": "2026-10-13T07:06:13Z"
+    }
+  }
+}
