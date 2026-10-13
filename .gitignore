@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Superdesign temporary exports
+.superdesign/tmp/
+
 example
 
 # generated native folders
