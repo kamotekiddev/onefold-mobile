@@ -35,6 +35,55 @@
         }
       },
       "updatedAt": "2026-10-13T07:06:13Z"
+    },
+    "/": {
+      "targetKind": "existing-ui",
+      "projectId": "f6c32b97-bd84-415f-ab7c-3d9a61bd2ca4",
+      "baselineDraftId": "c4b86695-186e-4d29-a911-bffc1cba8160",
+      "activeDraftId": "06dc13b8-82cd-4b16-8ce2-292114615046",
+      "designSystemPath": ".superdesign/design-system.md",
+      "referenceIds": [],
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "src/app/_layout.tsx",
+        "src/app/(app)/_layout.tsx",
+        "src/app/(app)/(tabs)/_layout.tsx",
+        "src/app/(app)/(tabs)/index.tsx",
+        "src/features/routines/screens/routines.tsx",
+        "src/components/ui/index.tsx",
+        "src/constants/theme.ts"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "99901b8de953b1b964162dfd6c6cdfc439958cb1308319676e37145dc05b46ba",
+        "src/app/_layout.tsx": "bcd35bf44c34c10d59b195d2b0789fc9c693c273395ff187c4c884590c4c5e1c",
+        "src/app/(app)/_layout.tsx": "0274d5369ad4aca43412816b84a7ccdd7d31028d67e3fec5b2d18b070256ae5d",
+        "src/app/(app)/(tabs)/_layout.tsx": "6d4057fa01b9d1fa21d484919f307c53358557ca22020ac2f484d3883bb058eb",
+        "src/app/(app)/(tabs)/index.tsx": "aaa9f84724a3596688fe7a3326e4032ad10806da503db9f429b3a84d17c0d184",
+        "src/features/routines/screens/routines.tsx": "1b1d61a2bbead8ac380ab387c7d7f9d4121e1804b7f904ffb2f9db334b9c0e76",
+        "src/components/ui/index.tsx": "34cc82af2f0b0469b8e2f91f0726673e8028f99fcba177c61dce980e2115b5b3",
+        "src/constants/theme.ts": "b8821677169237319a7de4b6fddc6fcc6cc1247b619e922c6a576aca9fe47b06"
+      },
+      "components": [],
+      "drafts": {
+        "c4b86695-186e-4d29-a911-bffc1cba8160": {
+          "title": "Onefold Routines Tab",
+          "visualDirection": "faithful current routines tab baseline",
+          "currentVersion": 1
+        },
+        "06dc13b8-82cd-4b16-8ce2-292114615046": {
+          "title": "Onefold Training-plan Library",
+          "visualDirection": "extra-compact routine list with smaller card type, relaxed row spacing, and New Routine action",
+          "parentDraftId": "c4b86695-186e-4d29-a911-bffc1cba8160",
+          "currentVersion": 5
+        },
+        "df758453-0caa-4883-8eed-ee99fbeaa5c6": {
+          "title": "Onefold Motivating Routines Workspace",
+          "visualDirection": "expressive routine cards with persistent bottom create action",
+          "parentDraftId": "c4b86695-186e-4d29-a911-bffc1cba8160",
+          "currentVersion": 1
+        }
+      },
+      "updatedAt": "2026-10-13T07:40:00Z"
     }
   }
 }

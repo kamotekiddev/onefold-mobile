@@ -23,6 +23,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Routines",
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <Text style={{ color, fontSize: 22 }}>▤</Text>
           ),
