@@ -36,3 +36,12 @@ export function progressionText(entry: RoutineEntry, unit: WeightUnit) {
     return `When every prescribed set reaches ${entry.repMax} reps at its load, add ${weightText(entry.weightIncrement ?? 0, unit)} ${unit} and reset to ${entry.repMin} reps.`
   return `When every prescribed set meets its reps and load, add ${entry.repIncrement ?? 1} reps, up to ${entry.repMax}. At the cap, adjust manually.`
 }
+
+export function progressionSummaryText(entry: RoutineEntry, unit: WeightUnit) {
+  if (entry.progressionMode === "manual")
+    return "Keep these targets until you update them."
+  if (entry.progressionMode === "weight")
+    return `Hit ${entry.repMax} reps on every set, then add ${weightText(entry.weightIncrement ?? 0, unit)} ${unit}.`
+  const increment = entry.repIncrement ?? 1
+  return `Complete every set, then add ${increment} ${increment === 1 ? "rep" : "reps"} up to ${entry.repMax}.`
+}
