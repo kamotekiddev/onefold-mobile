@@ -48,6 +48,7 @@ export default function TabLayout() {
         name="history"
         options={{
           title: "History",
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{
