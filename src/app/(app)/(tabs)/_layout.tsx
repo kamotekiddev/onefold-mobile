@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router/js-tabs"
-import { Text } from "react-native"
+import { SymbolView } from "expo-symbols"
 
 import { usePalette } from "@/constants/theme"
 
@@ -13,10 +13,17 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: p.surface,
           borderTopColor: p.border,
+          borderTopWidth: 1,
+          paddingTop: 6,
         },
         headerStyle: { backgroundColor: p.surface },
         headerTintColor: p.text,
-        tabBarLabelStyle: { fontSize: 12 },
+        tabBarItemStyle: { minHeight: 48 },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+          marginTop: 2,
+        },
       }}
     >
       <Tabs.Screen
@@ -25,7 +32,15 @@ export default function TabLayout() {
           title: "Routines",
           headerShown: false,
           tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 22 }}>▤</Text>
+            <SymbolView
+              name={{
+                ios: "square.grid.2x2",
+                android: "view_list",
+                web: "view_list",
+              }}
+              size={22}
+              tintColor={color}
+            />
           ),
         }}
       />
@@ -34,7 +49,15 @@ export default function TabLayout() {
         options={{
           title: "History",
           tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 22 }}>◷</Text>
+            <SymbolView
+              name={{
+                ios: "clock.arrow.circlepath",
+                android: "history",
+                web: "history",
+              }}
+              size={22}
+              tintColor={color}
+            />
           ),
         }}
       />
@@ -43,7 +66,15 @@ export default function TabLayout() {
         options={{
           title: "Settings",
           tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 22 }}>⚙</Text>
+            <SymbolView
+              name={{
+                ios: "slider.horizontal.3",
+                android: "tune",
+                web: "tune",
+              }}
+              size={22}
+              tintColor={color}
+            />
           ),
         }}
       />
