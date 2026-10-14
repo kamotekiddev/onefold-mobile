@@ -10,19 +10,15 @@ import {
   Pressable,
   StyleSheet,
   View,
-  useWindowDimensions,
 } from "react-native"
-import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { AppText, Button, ErrorMessage, Field, Screen } from "@/components/ui"
 import { MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
-import type { RoutineEntry } from "@/types/domain"
 
 import { useRoutineDraft } from "../hooks/draft"
 import { confirmAction, errorText, prescriptionText } from "../utils"
-import { getDropIndex } from "../reorder"
 
 export function RoutineEditorScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>()
@@ -36,17 +32,6 @@ export function RoutineEditorScreen() {
   const [error, setError] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [allowLeave, setAllowLeave] = useState(false)
-  const [drag, setDrag] = useState<{
-    id: string
-    translation: number
-    target: number
-  } | null>(null)
-  const rowHeights = useRef<Record<string, number>>({})
-  const scrollOffset = useRef(0)
-  const dragStartOffset = useRef(0)
-  const pointer = useRef(0)
-  const list = useRef<FlatList<RoutineEntry>>(null)
-  const { height } = useWindowDimensions()
   const unit = state.data?.preferences.weightUnit ?? "kg"
   useEffect(() => {
     let alive = true
@@ -87,36 +72,6 @@ export function RoutineEditorScreen() {
       }
     )
   })
-  const dragging = drag !== null
-  useEffect(() => {
-    if (!dragging) return
-    const interval = setInterval(() => {
-      const delta =
-        pointer.current < 160 ? -18 : pointer.current > height - 140 ? 18 : 0
-      if (delta)
-        list.current?.scrollToOffset({
-          offset: Math.max(0, scrollOffset.current + delta),
-          animated: false,
-        })
-    }, 70)
-    return () => clearInterval(interval)
-  }, [dragging, height])
-  const move = (entryId: string, target: number) =>
-    setDraft((current) => {
-      if (!current) return current
-      const entries = [...current.value.entries]
-      const from = entries.findIndex((entry) => entry.id === entryId)
-      if (from < 0 || target < 0 || target >= entries.length) return current
-      const [entry] = entries.splice(from, 1)
-      entries.splice(target, 0, entry)
-      return {
-        ...current,
-        value: {
-          ...current.value,
-          entries: entries.map((item, order) => ({ ...item, order })),
-        },
-      }
-    })
   const save = async (confirmTargetReset = false) => {
     if (!draft || saving.current) return
     const nextErrors: Record<string, string> = {}
@@ -188,13 +143,9 @@ export function RoutineEditorScreen() {
           <FlatList
             keyboardShouldPersistTaps="handled"
             removeClippedSubviews={false}
-            ref={list}
             data={draft.value.entries}
             keyExtractor={(item) => item.id}
             scrollEventThrottle={16}
-            onScroll={(event) => {
-              scrollOffset.current = event.nativeEvent.contentOffset.y
-            }}
             contentContainerStyle={styles.content}
             ListHeaderComponent={
               <View style={styles.headerContent}>
@@ -255,7 +206,7 @@ export function RoutineEditorScreen() {
                   <View style={styles.sectionCopy}>
                     <AppText variant="heading">Exercises</AppText>
                     <AppText variant="caption" color={p.textSecondary}>
-                      Press and hold an exercise’s grip, then drag to reorder.
+                      Configure sets, reps, and progression for each exercise.
                     </AppText>
                   </View>
                   <View
@@ -293,248 +244,128 @@ export function RoutineEditorScreen() {
               const exercise = state.data?.exercises.find(
                 (candidate) => candidate.id === item.exerciseId
               )
-              const isDragging = drag?.id === item.id
               return (
-                <View
-                  onLayout={(event) => {
-                    rowHeights.current[item.id] =
-                      event.nativeEvent.layout.height
-                  }}
-                  style={{
-                    zIndex: isDragging ? 10 : 0,
-                    transform: [
-                      {
-                        translateY: isDragging ? (drag?.translation ?? 0) : 0,
-                      },
-                      { scale: isDragging ? 1.02 : 1 },
-                    ],
-                    opacity: drag && !isDragging ? 0.65 : 1,
-                  }}
-                >
+                <View>
                   <View
                     style={[
                       styles.exerciseCard,
                       {
                         backgroundColor: p.surface,
-                        borderColor: isDragging ? p.accent : p.border,
+                        borderColor: p.border,
                       },
-                      isDragging && styles.draggingCard,
                     ]}
                   >
-                    <GestureDetector
-                      gesture={Gesture.Pan()
-                        .activateAfterLongPress(250)
-                        .runOnJS(true)
-                        .onStart((event) => {
-                          dragStartOffset.current = scrollOffset.current
-                          pointer.current = event.absoluteY
-                          setDrag({
-                            id: item.id,
-                            translation: 0,
-                            target: index,
-                          })
-                        })
-                        .onUpdate((event) => {
-                          pointer.current = event.absoluteY
-                          const translation =
-                            event.translationY +
-                            scrollOffset.current -
-                            dragStartOffset.current
-                          const target = getDropIndex(
-                            draft.value.entries,
-                            rowHeights.current,
-                            item.id,
-                            translation
-                          )
-                          setDrag({
-                            id: item.id,
-                            translation,
-                            target,
-                          })
-                        })
-                        .onEnd((event) => {
-                          const target = getDropIndex(
-                            draft.value.entries,
-                            rowHeights.current,
-                            item.id,
-                            event.translationY +
-                              scrollOffset.current -
-                              dragStartOffset.current
-                          )
-                          move(item.id, target)
-                          setDrag(null)
-                        })
-                        .onFinalize(() => setDrag(null))}
-                    >
-                      <View style={styles.exerciseHeader}>
-                        <View
-                          accessible
-                          accessibilityActions={[
-                            ...(index > 0
-                              ? [{ name: "moveup", label: "Move up" }]
-                              : []),
-                            ...(index < draft.value.entries.length - 1
-                              ? [{ name: "movedown", label: "Move down" }]
-                              : []),
-                          ]}
-                          accessibilityHint="Press and hold, then drag to reorder"
-                          accessibilityLabel={`Reorder ${exercise?.name ?? "exercise"}`}
-                          accessibilityRole="adjustable"
-                          accessibilityValue={{
-                            text: `Position ${index + 1} of ${draft.value.entries.length}`,
-                          }}
-                          onAccessibilityAction={(event) => {
-                            if (
-                              event.nativeEvent.actionName === "moveup" &&
-                              index > 0
-                            ) {
-                              move(item.id, index - 1)
-                            }
-                            if (
-                              event.nativeEvent.actionName === "movedown" &&
-                              index < draft.value.entries.length - 1
-                            ) {
-                              move(item.id, index + 1)
-                            }
-                          }}
-                          style={styles.dragHandle}
-                        >
-                          <SymbolView
-                            name={{
-                              android: "drag_handle",
-                              ios: "line.3.horizontal",
-                              web: "drag_handle",
-                            }}
-                            pointerEvents="none"
-                            size={13}
-                            tintColor={p.textSecondary}
-                          />
-                        </View>
-
-                        <View style={styles.exerciseCopy}>
-                          <View style={styles.exerciseTitleLine}>
-                            <View
-                              style={[
-                                styles.exerciseNumber,
-                                { backgroundColor: p.accentSoft },
-                              ]}
-                            >
-                              <AppText
-                                variant="caption"
-                                color={p.accent}
-                                style={styles.exerciseNumberLabel}
-                              >
-                                {index + 1}
-                              </AppText>
-                            </View>
+                    <View style={styles.exerciseHeader}>
+                      <View style={styles.exerciseCopy}>
+                        <View style={styles.exerciseTitleLine}>
+                          <View
+                            style={[
+                              styles.exerciseNumber,
+                              { backgroundColor: p.accentSoft },
+                            ]}
+                          >
                             <AppText
-                              variant="heading"
-                              style={styles.exerciseName}
+                              variant="caption"
+                              color={p.accent}
+                              style={styles.exerciseNumberLabel}
                             >
-                              {exercise?.name ?? "Exercise"}
+                              {index + 1}
                             </AppText>
                           </View>
-                          <AppText variant="caption" color={p.textSecondary}>
-                            {prescriptionText(item, unit)}
+                          <AppText
+                            variant="heading"
+                            style={styles.exerciseName}
+                          >
+                            {exercise?.name ?? "Exercise"}
                           </AppText>
                         </View>
-
-                        <View style={styles.headerActions}>
-                          <Pressable
-                            accessibilityLabel={`Configure ${exercise?.name ?? "exercise"}`}
-                            accessibilityRole="button"
-                            onPress={() =>
-                              router.push({
-                                pathname: "/routines/configure",
-                                params: { entryId: item.id },
-                              })
-                            }
-                            style={styles.iconAction}
-                          >
-                            {({ pressed }) => (
-                              <View
-                                style={[
-                                  styles.iconActionVisual,
-                                  {
-                                    backgroundColor: pressed
-                                      ? p.backgroundSelected
-                                      : p.backgroundElement,
-                                  },
-                                ]}
-                              >
-                                <SymbolView
-                                  name={{
-                                    android: "tune",
-                                    ios: "slider.horizontal.3",
-                                    web: "tune",
-                                  }}
-                                  size={18}
-                                  tintColor={p.accent}
-                                />
-                              </View>
-                            )}
-                          </Pressable>
-                          <Pressable
-                            accessibilityLabel={`Remove ${exercise?.name ?? "exercise"}`}
-                            accessibilityRole="button"
-                            onPress={() =>
-                              setDraft(
-                                (current) =>
-                                  current && {
-                                    ...current,
-                                    value: {
-                                      ...current.value,
-                                      entries: current.value.entries
-                                        .filter((entry) => entry.id !== item.id)
-                                        .map((entry, order) => ({
-                                          ...entry,
-                                          order,
-                                        })),
-                                    },
-                                  }
-                              )
-                            }
-                            style={styles.iconAction}
-                          >
-                            {({ pressed }) => (
-                              <View
-                                style={[
-                                  styles.iconActionVisual,
-                                  {
-                                    backgroundColor: pressed
-                                      ? p.dangerSoft
-                                      : p.backgroundElement,
-                                  },
-                                ]}
-                              >
-                                <SymbolView
-                                  name={{
-                                    android: "delete",
-                                    ios: "trash",
-                                    web: "delete",
-                                  }}
-                                  size={17}
-                                  tintColor={p.danger}
-                                />
-                              </View>
-                            )}
-                          </Pressable>
-                        </View>
-                      </View>
-                    </GestureDetector>
-
-                    {isDragging ? (
-                      <View
-                        style={[
-                          styles.dropStatus,
-                          { backgroundColor: p.accentSoft },
-                        ]}
-                      >
-                        <AppText variant="caption" color={p.accent}>
-                          Move to position {(drag?.target ?? index) + 1}
+                        <AppText variant="caption" color={p.textSecondary}>
+                          {prescriptionText(item, unit)}
                         </AppText>
                       </View>
-                    ) : null}
+
+                      <View style={styles.headerActions}>
+                        <Pressable
+                          accessibilityLabel={`Configure ${exercise?.name ?? "exercise"}`}
+                          accessibilityRole="button"
+                          onPress={() =>
+                            router.push({
+                              pathname: "/routines/configure",
+                              params: { entryId: item.id },
+                            })
+                          }
+                          style={styles.iconAction}
+                        >
+                          {({ pressed }) => (
+                            <View
+                              style={[
+                                styles.iconActionVisual,
+                                {
+                                  backgroundColor: pressed
+                                    ? p.backgroundSelected
+                                    : p.backgroundElement,
+                                },
+                              ]}
+                            >
+                              <SymbolView
+                                name={{
+                                  android: "tune",
+                                  ios: "slider.horizontal.3",
+                                  web: "tune",
+                                }}
+                                size={18}
+                                tintColor={p.accent}
+                              />
+                            </View>
+                          )}
+                        </Pressable>
+                        <Pressable
+                          accessibilityLabel={`Remove ${exercise?.name ?? "exercise"}`}
+                          accessibilityRole="button"
+                          onPress={() =>
+                            setDraft(
+                              (current) =>
+                                current && {
+                                  ...current,
+                                  value: {
+                                    ...current.value,
+                                    entries: current.value.entries
+                                      .filter((entry) => entry.id !== item.id)
+                                      .map((entry, order) => ({
+                                        ...entry,
+                                        order,
+                                      })),
+                                  },
+                                }
+                            )
+                          }
+                          style={styles.iconAction}
+                        >
+                          {({ pressed }) => (
+                            <View
+                              style={[
+                                styles.iconActionVisual,
+                                {
+                                  backgroundColor: pressed
+                                    ? p.dangerSoft
+                                    : p.backgroundElement,
+                                },
+                              ]}
+                            >
+                              <SymbolView
+                                name={{
+                                  android: "delete",
+                                  ios: "trash",
+                                  web: "delete",
+                                }}
+                                size={17}
+                                tintColor={p.danger}
+                              />
+                            </View>
+                          )}
+                        </Pressable>
+                      </View>
+                    </View>
                   </View>
                 </View>
               )
@@ -644,24 +475,10 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
   },
-  draggingCard: {
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
   exerciseHeader: {
     alignItems: "flex-start",
     flexDirection: "row",
     gap: 12,
-  },
-  dragHandle: {
-    alignItems: "center",
-    alignSelf: "stretch",
-    justifyContent: "center",
-    minHeight: 48,
-    width: 48,
   },
   exerciseCopy: { flex: 1, gap: 4, minWidth: 0 },
   exerciseTitleLine: {
@@ -678,7 +495,6 @@ const styles = StyleSheet.create({
   },
   exerciseNumberLabel: { fontWeight: "700" },
   exerciseName: { flex: 1, fontSize: 18, lineHeight: 25 },
-  dropStatus: { borderRadius: Radii.control, padding: 12 },
   headerActions: { flexDirection: "row" },
   iconAction: {
     alignItems: "center",
