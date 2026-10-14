@@ -3,7 +3,9 @@ import { useCallback, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -11,8 +13,8 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { AppText, Button, Card, ErrorMessage, Screen } from "@/components/ui"
-import { MaxContentWidth, Radii, usePalette } from "@/constants/theme"
+import { AppText, Button, ErrorMessage, Screen } from "@/components/ui"
+import { Colors, MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
 import type { Routine } from "@/types/domain"
 
@@ -20,7 +22,7 @@ import {
   confirmAction,
   errorText,
   prescriptionText,
-  progressionText,
+  progressionSummaryText,
 } from "../utils"
 
 export function RoutineListScreen() {
@@ -350,16 +352,178 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, fontWeight: "600", lineHeight: 20 },
   emptyMessage: { fontSize: 13, lineHeight: 18 },
+  detailsRoot: { flex: 1 },
+  detailsContent: {
+    alignSelf: "center",
+    gap: 24,
+    maxWidth: MaxContentWidth,
+    padding: 20,
+    paddingBottom: 32,
+    width: "100%",
+  },
+  detailsLoadingState: {
+    alignItems: "center",
+    gap: 16,
+    paddingVertical: 32,
+  },
+  detailsHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 16,
+  },
+  detailsBackAction: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  detailsBackLabel: { fontWeight: "600" },
+  detailsTitleBlock: { flex: 1, gap: 4, minWidth: 0 },
+  moreAction: {
+    alignItems: "center",
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  moreActionVisual: {
+    alignItems: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  moreActionLabel: { fontSize: 20, fontWeight: "700", lineHeight: 20 },
+  detailsError: {
+    borderRadius: Radii.control,
+    borderWidth: 1,
+    padding: 16,
+  },
+  planHeading: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "space-between",
+  },
+  planHeadingCopy: { flex: 1, gap: 2, minWidth: 200 },
+  countPill: {
+    borderRadius: Radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  countPillLabel: { fontWeight: "600" },
+  exerciseList: { gap: 16 },
+  exerciseCard: {
+    borderRadius: Radii.card,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16,
+  },
+  exerciseHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 12,
+  },
+  exerciseNumber: {
+    alignItems: "center",
+    borderRadius: 16,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  exerciseNumberLabel: { fontWeight: "700" },
+  exerciseCopy: { flex: 1, gap: 4, minWidth: 0 },
+  exerciseName: { fontSize: 18, lineHeight: 25 },
+  progressionSummary: {
+    borderRadius: Radii.control,
+    padding: 12,
+  },
+  startBar: { borderTopWidth: 1 },
+  startBarContent: {
+    alignSelf: "center",
+    maxWidth: MaxContentWidth,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    width: "100%",
+  },
+  startAction: {
+    alignItems: "center",
+    borderRadius: Radii.control,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 16,
+  },
+  startActionLabel: { fontWeight: "600" },
+  actionModal: { flex: 1, justifyContent: "flex-end" },
+  actionBackdrop: { opacity: 0.42 },
+  actionSafeArea: { paddingHorizontal: 12, paddingTop: 12, width: "100%" },
+  actionSheet: {
+    alignSelf: "center",
+    borderRadius: Radii.card,
+    borderWidth: 1,
+    gap: 16,
+    maxWidth: MaxContentWidth,
+    padding: 20,
+    width: "100%",
+  },
+  actionSheetHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 16,
+  },
+  actionSheetTitle: { flex: 1, gap: 2 },
+  actionList: { gap: 8 },
+  actionRow: {
+    alignItems: "center",
+    borderRadius: Radii.control,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    minHeight: 64,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  actionRowCopy: { flex: 1, gap: 2, minWidth: 0 },
+  actionRowLabel: { fontWeight: "600" },
+  actionRowDisclosure: { fontSize: 22, lineHeight: 24 },
+  destructiveAction: { marginTop: 4 },
+  closeAction: {
+    alignItems: "center",
+    justifyContent: "center",
+    height: 48,
+    width: 48,
+  },
+  closeActionVisual: {
+    alignItems: "center",
+    borderRadius: 10,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  closeActionIcon: { fontSize: 22, fontWeight: "500", lineHeight: 24 },
 })
 
 export function RoutineDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { state, services } = useApp()
+  const p = usePalette()
   const [routine, setRoutine] = useState<Routine | null>(null)
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [actionsOpen, setActionsOpen] = useState(false)
   const unit = state.data?.preferences.weightUnit ?? "kg"
+  const exerciseNames = useMemo(
+    () =>
+      new Map(
+        (state.data?.exercises ?? []).map((exercise) => [
+          exercise.id,
+          exercise.name,
+        ])
+      ),
+    [state.data?.exercises]
+  )
   const load = useCallback(() => {
     let alive = true
     setRoutine(null)
@@ -395,87 +559,406 @@ export function RoutineDetailsScreen() {
   }
   if (loading)
     return (
-      <Screen title="Routine">
-        <ActivityIndicator />
+      <Screen
+        title="Routine"
+        safeAreaEdges={["top", "left", "right", "bottom"]}
+      >
+        <View style={styles.detailsLoadingState}>
+          <ActivityIndicator
+            accessibilityLabel="Loading routine"
+            color={p.accent}
+          />
+          <AppText color={p.textSecondary}>Loading your plan…</AppText>
+        </View>
       </Screen>
     )
   if (!routine)
     return (
-      <Screen title="Routine">
+      <Screen
+        title="Routine"
+        safeAreaEdges={["top", "left", "right", "bottom"]}
+      >
         <ErrorMessage message={error || "Routine not found."} />
         <Button label="Try again" onPress={load} />
       </Screen>
     )
+
+  const startWorkout = () =>
+    router.push({
+      pathname: "/workout/start",
+      params: { routineId: routine.id },
+    })
+
+  const editRoutine = () => {
+    setActionsOpen(false)
+    router.push({
+      pathname: "/routines/edit",
+      params: { id: routine.id },
+    })
+  }
+
+  const duplicateRoutine = () => {
+    setActionsOpen(false)
+    void run(async () => {
+      const copy = await services.routines.duplicate(routine.id)
+      router.replace({
+        pathname: "/routines/details",
+        params: { id: copy.id },
+      })
+    })
+  }
+
+  const deleteRoutine = () => {
+    setActionsOpen(false)
+    confirmAction(
+      "Delete routine?",
+      "Previous workouts stay in your history. This routine will be removed.",
+      "Delete",
+      () =>
+        void run(async () => {
+          await services.routines.delete(routine.id)
+          router.replace("/")
+        })
+    )
+  }
+
   return (
-    <Screen
-      title={routine.name}
-      subtitle={`${routine.entries.length} exercises · your plan for today`}
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      style={[styles.detailsRoot, { backgroundColor: p.background }]}
     >
-      {error ? <ErrorMessage message={error} /> : null}
-      <Button
-        label="Start workout"
-        disabled={busy}
-        onPress={() =>
-          router.push({
-            pathname: "/workout/start",
-            params: { routineId: routine.id },
-          })
-        }
-      />
-      {routine.entries.map((entry, index) => (
-        <Card key={entry.id}>
-          <AppText variant="heading">
-            {index + 1}.{" "}
-            {state.data?.exercises.find(
-              (exercise) => exercise.id === entry.exerciseId
-            )?.name ?? "Exercise"}
+      <ScrollView
+        contentContainerStyle={styles.detailsContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Pressable
+          accessibilityLabel="Back to routines"
+          accessibilityRole="button"
+          onPress={() => router.replace("/")}
+          style={styles.detailsBackAction}
+        >
+          <AppText
+            variant="caption"
+            color={p.accent}
+            style={styles.detailsBackLabel}
+          >
+            ‹ Routines
           </AppText>
-          <AppText>{prescriptionText(entry, unit)}</AppText>
-          <AppText variant="caption">{progressionText(entry, unit)}</AppText>
-        </Card>
-      ))}
-      <Button
-        label="Edit routine"
-        variant="secondary"
-        disabled={busy}
-        onPress={() =>
-          router.push({
-            pathname: "/routines/edit",
-            params: { id: routine.id },
-          })
-        }
-      />
-      <Button
-        label="Duplicate routine"
-        variant="secondary"
-        loading={busy}
-        onPress={() =>
-          void run(async () => {
-            const copy = await services.routines.duplicate(routine.id)
-            router.replace({
-              pathname: "/routines/details",
-              params: { id: copy.id },
-            })
-          })
-        }
-      />
-      <Button
-        label="Delete routine"
-        variant="danger"
-        disabled={busy}
-        onPress={() =>
-          confirmAction(
-            "Delete routine?",
-            "Previous workouts stay in your history. This routine will be removed.",
-            "Delete",
-            () =>
-              void run(async () => {
-                await services.routines.delete(routine.id)
-                router.replace("/")
-              })
-          )
-        }
-      />
-    </Screen>
+        </Pressable>
+        <View style={styles.detailsHeader}>
+          <View style={styles.detailsTitleBlock}>
+            <AppText variant="title">{routine.name}</AppText>
+            <AppText color={p.textSecondary}>
+              {routine.entries.length} exercises · your plan for today
+            </AppText>
+          </View>
+          <Pressable
+            accessibilityLabel="More routine actions"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: actionsOpen, disabled: busy }}
+            disabled={busy}
+            onPress={() => setActionsOpen(true)}
+            style={styles.moreAction}
+          >
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.moreActionVisual,
+                  {
+                    backgroundColor: pressed
+                      ? p.backgroundSelected
+                      : p.backgroundElement,
+                    borderColor: p.border,
+                    opacity: busy ? 0.6 : 1,
+                  },
+                ]}
+              >
+                <Text
+                  accessibilityElementsHidden
+                  importantForAccessibility="no"
+                  style={[styles.moreActionLabel, { color: p.textSecondary }]}
+                >
+                  ⋯
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
+
+        {error ? (
+          <View
+            style={[
+              styles.detailsError,
+              { backgroundColor: p.dangerSoft, borderColor: p.danger },
+            ]}
+          >
+            <ErrorMessage message={error} />
+          </View>
+        ) : null}
+
+        <View style={styles.planHeading}>
+          <View style={styles.planHeadingCopy}>
+            <AppText variant="heading">Today&apos;s plan</AppText>
+            <AppText variant="caption" color={p.textSecondary}>
+              Follow the exercises in order.
+            </AppText>
+          </View>
+          <View style={[styles.countPill, { backgroundColor: p.accentSoft }]}>
+            <AppText
+              variant="caption"
+              color={p.accent}
+              style={styles.countPillLabel}
+            >
+              {routine.entries.length} exercises
+            </AppText>
+          </View>
+        </View>
+
+        <View style={styles.exerciseList}>
+          {routine.entries.map((entry, index) => (
+            <View
+              key={entry.id}
+              style={[
+                styles.exerciseCard,
+                { backgroundColor: p.surface, borderColor: p.border },
+              ]}
+            >
+              <View style={styles.exerciseHeader}>
+                <View
+                  style={[
+                    styles.exerciseNumber,
+                    { backgroundColor: p.backgroundElement },
+                  ]}
+                >
+                  <AppText
+                    variant="caption"
+                    color={p.accent}
+                    style={styles.exerciseNumberLabel}
+                  >
+                    {index + 1}
+                  </AppText>
+                </View>
+                <View style={styles.exerciseCopy}>
+                  <AppText variant="heading" style={styles.exerciseName}>
+                    {exerciseNames.get(entry.exerciseId) ?? "Exercise"}
+                  </AppText>
+                  <AppText variant="caption" color={p.textSecondary}>
+                    {prescriptionText(entry, unit)}
+                  </AppText>
+                </View>
+              </View>
+              <View
+                style={[
+                  styles.progressionSummary,
+                  { backgroundColor: p.backgroundElement },
+                ]}
+              >
+                <AppText variant="caption" color={p.textSecondary}>
+                  {progressionSummaryText(entry, unit)}
+                </AppText>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+
+      <SafeAreaView
+        edges={["bottom"]}
+        style={[
+          styles.startBar,
+          { backgroundColor: p.surface, borderTopColor: p.border },
+        ]}
+      >
+        <View style={styles.startBarContent}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={startWorkout}
+            style={({ pressed }) => [
+              styles.startAction,
+              {
+                backgroundColor: p.accent,
+                opacity: pressed || busy ? 0.72 : 1,
+              },
+            ]}
+          >
+            <AppText color={p.accentText} style={styles.startActionLabel}>
+              Start workout
+            </AppText>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setActionsOpen(false)}
+        presentationStyle="overFullScreen"
+        transparent
+        visible={actionsOpen}
+      >
+        <View style={styles.actionModal}>
+          <Pressable
+            accessibilityLabel="Close routine actions"
+            accessibilityRole="button"
+            onPress={() => setActionsOpen(false)}
+            style={[
+              StyleSheet.absoluteFill,
+              styles.actionBackdrop,
+              { backgroundColor: Colors.dark.background },
+            ]}
+          />
+          <SafeAreaView
+            edges={["left", "right", "bottom"]}
+            style={styles.actionSafeArea}
+          >
+            <View
+              accessibilityViewIsModal
+              style={[
+                styles.actionSheet,
+                { backgroundColor: p.surface, borderColor: p.border },
+              ]}
+            >
+              <View style={styles.actionSheetHeader}>
+                <View style={styles.actionSheetTitle}>
+                  <AppText variant="heading">Manage routine</AppText>
+                  <AppText variant="caption" color={p.textSecondary}>
+                    {routine.name}
+                  </AppText>
+                </View>
+                <Pressable
+                  accessibilityLabel="Close routine actions"
+                  accessibilityRole="button"
+                  onPress={() => setActionsOpen(false)}
+                  style={styles.closeAction}
+                >
+                  {({ pressed }) => (
+                    <View
+                      style={[
+                        styles.closeActionVisual,
+                        {
+                          backgroundColor: pressed
+                            ? p.backgroundSelected
+                            : p.backgroundElement,
+                        },
+                      ]}
+                    >
+                      <Text
+                        accessibilityElementsHidden
+                        importantForAccessibility="no"
+                        style={[styles.closeActionIcon, { color: p.accent }]}
+                      >
+                        ×
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              </View>
+              <View style={styles.actionList}>
+                <Pressable
+                  accessibilityHint="Opens the routine editor"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: busy }}
+                  disabled={busy}
+                  onPress={editRoutine}
+                  style={({ pressed }) => [
+                    styles.actionRow,
+                    {
+                      backgroundColor: pressed
+                        ? p.backgroundSelected
+                        : p.backgroundElement,
+                      borderColor: p.border,
+                      opacity: busy ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.actionRowCopy}>
+                    <AppText style={styles.actionRowLabel}>
+                      Edit routine
+                    </AppText>
+                    <AppText variant="caption" color={p.textSecondary}>
+                      Change exercises and targets
+                    </AppText>
+                  </View>
+                  <Text
+                    accessibilityElementsHidden
+                    importantForAccessibility="no"
+                    style={[
+                      styles.actionRowDisclosure,
+                      { color: p.textSecondary },
+                    ]}
+                  >
+                    ›
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityHint="Creates an editable copy"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: busy }}
+                  disabled={busy}
+                  onPress={duplicateRoutine}
+                  style={({ pressed }) => [
+                    styles.actionRow,
+                    {
+                      backgroundColor: pressed
+                        ? p.backgroundSelected
+                        : p.backgroundElement,
+                      borderColor: p.border,
+                      opacity: busy ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.actionRowCopy}>
+                    <AppText style={styles.actionRowLabel}>
+                      Duplicate routine
+                    </AppText>
+                    <AppText variant="caption" color={p.textSecondary}>
+                      Create a separate editable copy
+                    </AppText>
+                  </View>
+                  <Text
+                    accessibilityElementsHidden
+                    importantForAccessibility="no"
+                    style={[
+                      styles.actionRowDisclosure,
+                      { color: p.textSecondary },
+                    ]}
+                  >
+                    ›
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityHint="Permanently removes this routine"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: busy }}
+                  disabled={busy}
+                  onPress={deleteRoutine}
+                  style={({ pressed }) => [
+                    styles.actionRow,
+                    styles.destructiveAction,
+                    {
+                      backgroundColor: pressed ? p.dangerSoft : p.surface,
+                      borderColor: p.danger,
+                      opacity: busy ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.actionRowCopy}>
+                    <AppText color={p.danger} style={styles.actionRowLabel}>
+                      Delete routine
+                    </AppText>
+                    <AppText variant="caption" color={p.textSecondary}>
+                      Workout history will be kept
+                    </AppText>
+                  </View>
+                </Pressable>
+              </View>
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
+    </SafeAreaView>
   )
 }

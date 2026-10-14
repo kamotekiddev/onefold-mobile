@@ -5,13 +5,10 @@ export default function RoutinesLayout() {
   return (
     <RoutineDraftProvider>
       <Stack screenOptions={{ headerBackTitle: "Back" }}>
-        <Stack.Screen name="details" options={{ title: "Routine" }} />
-        <Stack.Screen name="edit" options={{ title: "Routine editor" }} />
-        <Stack.Screen name="picker" options={{ title: "Exercises" }} />
-        <Stack.Screen
-          name="configure"
-          options={{ title: "Exercise settings" }}
-        />
+        <Stack.Screen name="details" options={{ headerShown: false }} />
+        <Stack.Screen name="edit" options={{ headerShown: false }} />
+        <Stack.Screen name="picker" options={{ headerShown: false }} />
+        <Stack.Screen name="configure" options={{ headerShown: false }} />
       </Stack>
     </RoutineDraftProvider>
   )
