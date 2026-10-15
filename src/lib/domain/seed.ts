@@ -66,6 +66,7 @@ export function makeSeed(now = Date.now()): AppData {
           entry("entry-bench", "exercise-2", 1, 30),
           entry("entry-row", "exercise-5", 2, 30),
         ],
+        scheduledDays: [],
         createdAt: now,
         updatedAt: now,
       },

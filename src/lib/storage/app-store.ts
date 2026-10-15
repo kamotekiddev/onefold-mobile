@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite"
-import type { AppData, StoreSnapshot } from "../../types/domain"
+import type { AppData, StoreSnapshot, Weekday } from "../../types/domain"
 import { makeSeed } from "../domain/seed"
 
 let snapshot: StoreSnapshot = { status: "loading", data: null, error: null }
@@ -71,7 +71,23 @@ function parseStored(raw: string): AppData {
     throw new Error(
       "Saved data has an unsupported format. Your data has not been overwritten."
     )
-  return value as AppData
+  const data = value as AppData
+  data.routines = data.routines.map((routine) => {
+    const scheduledDays = (routine as { scheduledDays?: unknown }).scheduledDays
+    return {
+      ...routine,
+      scheduledDays: Array.isArray(scheduledDays)
+        ? scheduledDays.filter(
+            (day): day is Weekday =>
+              typeof day === "number" &&
+              Number.isInteger(day) &&
+              day >= 0 &&
+              day <= 6
+          )
+        : [],
+    }
+  })
+  return data
 }
 export const appStore = {
   hydrate,

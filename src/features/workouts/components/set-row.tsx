@@ -1,11 +1,13 @@
 import { memo, useState } from "react"
 import { StyleSheet, View } from "react-native"
 
-import { AppText, Button, Card, ErrorMessage, Field } from "@/components/ui"
+import { AppText, ErrorMessage } from "@/components/ui"
+import { Radii, usePalette } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
 import type {
   SetUpdate,
   WeightUnit,
+  Workout,
   WorkoutEntry,
   WorkoutSet,
 } from "@/types/domain"
@@ -17,19 +19,25 @@ import {
 } from "../hooks/use-drafts"
 import { displayWeight, errorText, inputWeight } from "../utils/display"
 
+import { WorkoutAction } from "./workout-action"
+import { WorkoutNumberField } from "./workout-number-field"
+
 interface Props {
   workoutId: string
   entry: WorkoutEntry
   set: WorkoutSet
   unit: WeightUnit
+  onSetFinished: (updated: Workout, entryId: string, setId: string) => void
 }
 export const SetRow = memo(function SetRow({
   workoutId,
   entry,
   set,
   unit,
+  onSetFinished,
 }: Props) {
   const { services } = useApp()
+  const p = usePalette()
   const drafts = useWorkoutDrafts()
   const key = draftKey(workoutId, set.id)
   const draft = drafts[key]
@@ -68,10 +76,16 @@ export const SetRow = memo(function SetRow({
     }
     writeDraft(key, next)
     try {
-      await services.workouts.updateSet(workoutId, entry.id, set.id, patch)
+      const updated = await services.workouts.updateSet(
+        workoutId,
+        entry.id,
+        set.id,
+        patch
+      )
       if (readDraft(key)?.version === version) {
         writeDraft(key, { ...next, pending: false })
         setError("")
+        return updated
       }
     } catch (failure) {
       if (readDraft(key)?.version === version)
@@ -81,6 +95,7 @@ export const SetRow = memo(function SetRow({
           error: `Not saved: ${errorText(failure)}`,
         })
     }
+    return null
   }
   const changeStatus = async (status: WorkoutSet["status"]) => {
     if (busy) return
@@ -96,7 +111,7 @@ export const SetRow = memo(function SetRow({
       return
     }
     setBusy(true)
-    await update({
+    const updated = await update({
       status,
       repsInput: reps,
       weightInput: weight,
@@ -104,31 +119,62 @@ export const SetRow = memo(function SetRow({
       actualWeight: weighted ? actualWeight : null,
     })
     setBusy(false)
+    if (updated && status !== "pending")
+      onSetFinished(updated, entry.id, set.id)
   }
+  const setLabel =
+    set.kind === "extra" ? `Extra set ${set.index + 1}` : `Set ${set.index + 1}`
   return (
-    <Card>
-      <AppText variant="heading">
-        {set.kind === "extra" ? "Extra set" : `Set ${set.index + 1}`} ·{" "}
-        {set.status === "completed"
-          ? "Complete"
-          : set.status === "skipped"
-            ? "Skipped"
-            : "To do"}
-      </AppText>
-      <AppText variant="caption">
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: p.surface,
+          borderColor: set.status === "completed" ? p.accent : p.border,
+        },
+      ]}
+    >
+      <View style={styles.heading}>
+        <AppText variant="caption" style={styles.setLabel}>
+          {setLabel}
+        </AppText>
+        <View
+          style={[
+            styles.status,
+            {
+              backgroundColor:
+                set.status === "completed" ? p.accentSoft : p.backgroundElement,
+            },
+          ]}
+        >
+          <AppText
+            variant="caption"
+            color={set.status === "completed" ? p.accent : p.textSecondary}
+            style={styles.statusLabel}
+          >
+            {set.status === "completed"
+              ? "✓ Complete"
+              : set.status === "skipped"
+                ? "Skipped"
+                : "To do"}
+          </AppText>
+        </View>
+      </View>
+      <AppText variant="caption" color={p.textSecondary}>
         Target {set.plannedReps} reps
         {weighted ? ` × ${displayWeight(set.plannedWeight, unit)} ${unit}` : ""}
       </AppText>
       {previous && (
-        <AppText variant="caption">
+        <AppText variant="caption" color={p.textSecondary}>
           Previous: {previous.reps ?? "—"} reps
           {weighted ? ` × ${displayWeight(previous.weight, unit)} ${unit}` : ""}
         </AppText>
       )}
       <View style={styles.inputs}>
         <View style={styles.input}>
-          <Field
+          <WorkoutNumberField
             label="Actual reps"
+            accessibilityLabel={`${entry.exercise.name}, ${setLabel}, actual reps`}
             value={reps}
             keyboardType="number-pad"
             onChangeText={(value) => {
@@ -146,12 +192,13 @@ export const SetRow = memo(function SetRow({
         </View>
         {weighted && (
           <View style={styles.input}>
-            <Field
+            <WorkoutNumberField
               label={
                 entry.exercise.trackingType === "bodyweightAddedWeight"
                   ? "Added weight"
                   : "Actual weight"
               }
+              accessibilityLabel={`${entry.exercise.name}, ${setLabel}, ${entry.exercise.trackingType === "bodyweightAddedWeight" ? "added" : "actual"} weight in ${unit}`}
               suffix={unit}
               value={weight}
               keyboardType="decimal-pad"
@@ -175,7 +222,7 @@ export const SetRow = memo(function SetRow({
       {!!(error || draft?.error) && (
         <>
           <ErrorMessage message={error || draft?.error || ""} />
-          <Button
+          <WorkoutAction
             label="Retry saving inputs"
             variant="secondary"
             onPress={() =>
@@ -192,10 +239,11 @@ export const SetRow = memo(function SetRow({
       )}
       <View style={styles.actions}>
         <View style={styles.input}>
-          <Button
+          <WorkoutAction
             label={
               set.status === "completed" ? "Undo completion" : "Complete set"
             }
+            accessibilityLabel={`${set.status === "completed" ? "Undo completion" : "Complete"}, ${entry.exercise.name}, ${setLabel}`}
             loading={busy}
             onPress={() =>
               void changeStatus(
@@ -206,22 +254,41 @@ export const SetRow = memo(function SetRow({
           />
         </View>
         {set.status !== "completed" && (
-          <Button
-            label={set.status === "skipped" ? "Restore" : "Skip"}
-            variant="secondary"
-            disabled={busy}
-            onPress={() =>
-              void changeStatus(
-                set.status === "skipped" ? "pending" : "skipped"
-              )
-            }
-          />
+          <View style={styles.secondaryAction}>
+            <WorkoutAction
+              label={set.status === "skipped" ? "Restore" : "Skip"}
+              accessibilityLabel={`${set.status === "skipped" ? "Restore" : "Skip"}, ${entry.exercise.name}, ${setLabel}`}
+              variant="secondary"
+              disabled={busy}
+              onPress={() =>
+                void changeStatus(
+                  set.status === "skipped" ? "pending" : "skipped"
+                )
+              }
+            />
+          </View>
         )}
       </View>
-    </Card>
+    </View>
   )
 })
 const styles = StyleSheet.create({
+  card: { borderRadius: Radii.card, borderWidth: 1, padding: 16, gap: 10 },
+  heading: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  setLabel: { fontSize: 14, fontWeight: "700" },
+  status: {
+    borderRadius: Radii.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  statusLabel: { fontWeight: "600" },
+  secondaryAction: { minWidth: 80 },
   inputs: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   input: { flex: 1, minWidth: 110 },
   actions: {

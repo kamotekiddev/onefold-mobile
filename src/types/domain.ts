@@ -22,14 +22,18 @@ export interface RoutineEntry {
   repIncrement?: number
   prescriptionRevision: number
 }
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
 export interface Routine {
   id: string
   name: string
   entries: RoutineEntry[]
+  scheduledDays: Weekday[]
   createdAt: number
   updatedAt: number
 }
-export type RoutineInput = Pick<Routine, "name" | "entries">
+export type RoutineInput = Pick<Routine, "name" | "entries"> & {
+  scheduledDays?: Weekday[]
+}
 export interface SessionIdentity {
   id: string
   email: string

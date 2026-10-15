@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { AppText, Button, ErrorMessage, Screen } from "@/components/ui"
 import { Colors, MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
-import type { Routine } from "@/types/domain"
+import type { Routine, Weekday, Workout } from "@/types/domain"
 
 import {
   confirmAction,
@@ -43,6 +43,15 @@ export function RoutineListScreen() {
   )
   const avatarInitial =
     state.data?.session?.email.trim().charAt(0).toUpperCase() || "U"
+  const now = new Date()
+  const today = now.getDay() as Weekday
+  const todayName = now.toLocaleDateString(undefined, { weekday: "long" })
+  const todaysRoutines = routines.filter((routine) =>
+    (routine.scheduledDays ?? []).includes(today)
+  )
+  const activeWorkout = state.data?.workouts.find(
+    (workout) => workout.status === "inProgress"
+  )
   const load = useCallback(() => {
     let alive = true
     setLoading(true)
@@ -224,6 +233,16 @@ export function RoutineListScreen() {
             contentContainerStyle={styles.listContent}
             data={routines}
             keyExtractor={(item) => item.id}
+            ListHeaderComponent={
+              routines.length ? (
+                <TodayWorkoutWidget
+                  activeWorkout={activeWorkout}
+                  dayName={todayName}
+                  routines={todaysRoutines}
+                  setupRoutineId={routines[0].id}
+                />
+              ) : null
+            }
             ListEmptyComponent={
               <View
                 style={[
@@ -249,6 +268,99 @@ export function RoutineListScreen() {
         )}
       </View>
     </SafeAreaView>
+  )
+}
+
+function TodayWorkoutWidget({
+  activeWorkout,
+  dayName,
+  routines,
+  setupRoutineId,
+}: {
+  activeWorkout?: Workout
+  dayName: string
+  routines: Routine[]
+  setupRoutineId: string
+}) {
+  const p = usePalette()
+  return (
+    <View
+      style={[
+        styles.todayCard,
+        { backgroundColor: p.surface, borderColor: p.border },
+      ]}
+    >
+      <View style={styles.todayHeading}>
+        <View style={styles.todayTitleBlock}>
+          <AppText variant="caption" color={p.accent}>
+            {dayName}
+          </AppText>
+          <AppText variant="heading">
+            {activeWorkout ? "Workout in progress" : "Today’s workout"}
+          </AppText>
+        </View>
+        <View style={[styles.todayMark, { backgroundColor: p.accentSoft }]}>
+          <AppText
+            variant="caption"
+            color={p.accent}
+            style={styles.todayMarkText}
+          >
+            TODAY
+          </AppText>
+        </View>
+      </View>
+
+      {activeWorkout ? (
+        <View style={styles.todayContent}>
+          <AppText color={p.textSecondary}>{activeWorkout.routineName}</AppText>
+          <Button
+            label="Resume workout"
+            onPress={() => router.replace("/workout/active")}
+          />
+        </View>
+      ) : routines.length ? (
+        <View style={styles.todayList}>
+          {routines.map((routine) => (
+            <View key={routine.id} style={styles.todayRoutine}>
+              <View style={styles.todayRoutineCopy}>
+                <AppText variant="body" style={styles.todayRoutineName}>
+                  {routine.name}
+                </AppText>
+                <AppText variant="caption" color={p.textSecondary}>
+                  {routine.entries.length} exercises
+                </AppText>
+              </View>
+              <Button
+                label={`Start ${routine.name}`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/workout/start",
+                    params: { routineId: routine.id },
+                  })
+                }
+              />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.todayContent}>
+          <AppText color={p.textSecondary}>
+            No routine is scheduled for today. Add today to a routine’s weekly
+            schedule to see it here.
+          </AppText>
+          <Button
+            label="Set today’s workout"
+            variant="secondary"
+            onPress={() =>
+              router.push({
+                pathname: "/routines/edit",
+                params: { id: setupRoutineId },
+              })
+            }
+          />
+        </View>
+      )}
+    </View>
   )
 }
 
@@ -318,6 +430,29 @@ const styles = StyleSheet.create({
   },
   newRoutineLabel: { fontSize: 13, fontWeight: "600", lineHeight: 16 },
   listContent: { gap: 12, paddingBottom: 24 },
+  todayCard: {
+    borderRadius: Radii.card,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16,
+  },
+  todayHeading: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  todayTitleBlock: { flex: 1, gap: 2 },
+  todayMark: {
+    borderRadius: Radii.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  todayMarkText: { fontWeight: "700", letterSpacing: 0.4 },
+  todayContent: { gap: 10 },
+  todayList: { gap: 12 },
+  todayRoutine: { gap: 8 },
+  todayRoutineCopy: { gap: 2 },
+  todayRoutineName: { fontWeight: "600" },
   routineRow: {
     alignItems: "center",
     borderRadius: Radii.control,
