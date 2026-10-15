@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "onefold-mobile",
-    "slug": "onefold-mobile",
+    "slug": "onefold",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -38,6 +38,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a879a620-e5d6-4c08-86f6-5e0eeb82b78a"
+      }
+    },
+    "owner": "kamote.dev"
   }
 }
