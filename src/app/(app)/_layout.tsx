@@ -19,10 +19,7 @@ export default function AppLayout() {
         <Stack.Screen name="routines" options={{ headerShown: false }} />
         <Stack.Screen name="workout/start" options={{ headerShown: false }} />
         <Stack.Screen name="workout/active" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="workout/[id]"
-          options={{ title: "Workout review" }}
-        />
+        <Stack.Screen name="workout/[id]" options={{ headerShown: false }} />
       </Stack>
     </View>
   )
