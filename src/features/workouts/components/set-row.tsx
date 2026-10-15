@@ -97,7 +97,7 @@ export const SetRow = memo(function SetRow({
     }
     return null
   }
-  const changeStatus = async (status: WorkoutSet["status"]) => {
+  const changeStatus = async (status: "pending" | "completed") => {
     if (busy) return
     if (
       status === "completed" &&
@@ -119,7 +119,7 @@ export const SetRow = memo(function SetRow({
       actualWeight: weighted ? actualWeight : null,
     })
     setBusy(false)
-    if (updated && status !== "pending")
+    if (updated && status === "completed")
       onSetFinished(updated, entry.id, set.id)
   }
   const setLabel =
@@ -152,11 +152,7 @@ export const SetRow = memo(function SetRow({
             color={set.status === "completed" ? p.accent : p.textSecondary}
             style={styles.statusLabel}
           >
-            {set.status === "completed"
-              ? "✓ Complete"
-              : set.status === "skipped"
-                ? "Skipped"
-                : "To do"}
+            {set.status === "completed" ? "✓ Complete" : "To do"}
           </AppText>
         </View>
       </View>
@@ -253,21 +249,6 @@ export const SetRow = memo(function SetRow({
             variant={set.status === "completed" ? "secondary" : "primary"}
           />
         </View>
-        {set.status !== "completed" && (
-          <View style={styles.secondaryAction}>
-            <WorkoutAction
-              label={set.status === "skipped" ? "Restore" : "Skip"}
-              accessibilityLabel={`${set.status === "skipped" ? "Restore" : "Skip"}, ${entry.exercise.name}, ${setLabel}`}
-              variant="secondary"
-              disabled={busy}
-              onPress={() =>
-                void changeStatus(
-                  set.status === "skipped" ? "pending" : "skipped"
-                )
-              }
-            />
-          </View>
-        )}
       </View>
     </View>
   )
@@ -288,7 +269,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   statusLabel: { fontWeight: "600" },
-  secondaryAction: { minWidth: 80 },
   inputs: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   input: { flex: 1, minWidth: 110 },
   actions: {

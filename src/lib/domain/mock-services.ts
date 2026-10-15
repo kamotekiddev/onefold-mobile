@@ -271,7 +271,7 @@ export function createServices(
           if (existing)
             throw new ServiceError(
               "ACTIVE_WORKOUT_EXISTS",
-              "A workout is already active. Resume or abandon it before starting another."
+              "A workout is already active. Finish it before starting another."
             )
           const routine = required(
             data.routines.find((item) => item.id === routineId),
@@ -383,6 +383,12 @@ export function createServices(
             entry.sets.find((item) => item.id === setId),
             "Set"
           )
+          const wasCompleted = set.status === "completed"
+          if (update.status === "skipped")
+            throw new ServiceError(
+              "VALIDATION",
+              "Sets cannot be skipped. Complete the set to continue."
+            )
           const next = { ...set, ...update }
           if (next.status === "completed") {
             if (next.actualReps === null || !isPositiveInteger(next.actualReps))
@@ -403,20 +409,21 @@ export function createServices(
             next.actualWeight = null
             next.weightInput = ""
           }
-          if (update.status === "completed" && set.status !== "completed")
+          Object.assign(set, next)
+          if (update.status === "completed" && !wasCompleted) {
+            const hasRemainingSets = workout.entries.some((item) =>
+              item.sets.some((itemSet) => itemSet.status !== "completed")
+            )
             workout.restTimer =
-              entry.prescription.restSeconds > 0
+              entry.prescription.restSeconds > 0 && hasRemainingSets
                 ? {
                     endsAt: now() + entry.prescription.restSeconds * 1000,
                     setId,
                   }
                 : null
-          if (
-            (update.status === "pending" || update.status === "skipped") &&
-            workout.restTimer?.setId === setId
-          )
+          }
+          if (update.status === "pending" && workout.restTimer?.setId === setId)
             workout.restTimer = null
-          Object.assign(set, next)
           return workout
         })
       },
@@ -452,6 +459,15 @@ export function createServices(
             throw new ServiceError(
               "WORKOUT_CLOSED",
               "An abandoned workout cannot be completed."
+            )
+          if (
+            workout.entries.some((entry) =>
+              entry.sets.some((set) => set.status !== "completed")
+            )
+          )
+            throw new ServiceError(
+              "VALIDATION",
+              "Complete every set before finishing this workout."
             )
           workout.status = "completed"
           workout.finishedAt = now()
@@ -503,8 +519,14 @@ export function createServices(
         await before("workouts.updateTimer")
         return store.mutate((data) => {
           const workout = active(data, id)
-          if (action.type === "clear") workout.restTimer = null
-          else if (workout.restTimer)
+          if (
+            action.type === "clear" ||
+            (action.type === "expire" &&
+              workout.restTimer &&
+              workout.restTimer.endsAt <= now())
+          )
+            workout.restTimer = null
+          else if (action.type === "adjust" && workout.restTimer)
             workout.restTimer.endsAt = Math.max(
               now(),
               workout.restTimer.endsAt + action.seconds * 1000

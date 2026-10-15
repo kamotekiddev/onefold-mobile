@@ -159,6 +159,48 @@ test("completion never assumes planned values; timer is persisted and undo clear
   assert.equal((await f.services.workouts.getActive())?.restTimer, null)
 })
 
+test("rest expires automatically without clearing a timer that was extended", async () => {
+  const f = fixture()
+  const workout = await f.services.workouts.start("routine-full-body")
+  const entry = workout.entries[0]
+  const set = entry.sets[0]
+  const saved = await f.services.workouts.updateSet(
+    workout.id,
+    entry.id,
+    set.id,
+    { actualReps: 10, actualWeight: 40, status: "completed" }
+  )
+  assert.equal(saved.restTimer?.endsAt, 92000)
+
+  await f.services.workouts.updateTimer(workout.id, { type: "expire" })
+  assert.equal(
+    (await f.services.workouts.getActive())?.restTimer?.endsAt,
+    92000
+  )
+
+  await f.services.workouts.updateTimer(workout.id, {
+    type: "adjust",
+    seconds: 15,
+  })
+  f.advance(90000)
+  await f.services.workouts.updateTimer(workout.id, { type: "expire" })
+  assert.equal(
+    (await f.services.workouts.getActive())?.restTimer?.endsAt,
+    107000
+  )
+
+  f.advance(15000)
+  await f.services.workouts.updateTimer(workout.id, { type: "expire" })
+  assert.equal((await f.services.workouts.getActive())?.restTimer, null)
+})
+
+test("finishing the final set does not start a rest timer", async () => {
+  const f = fixture()
+  const workout = await f.services.workouts.start("routine-full-body")
+  await logAll(f, workout)
+  assert.equal((await f.services.workouts.getActive())?.restTimer, null)
+})
+
 test("prescription revision prevents older snapshot from changing future targets and history survives delete", async () => {
   const f = fixture()
   const workout = await f.services.workouts.start("routine-full-body")
@@ -202,22 +244,30 @@ test("failed durable writes do not publish successful mutation", async () => {
   assert.equal(f.state().futureTargets.length, 0)
 })
 
-test("skips and unfinished prescribed sets block progression; extras never affect it", async () => {
+test("every set, including extras, must be completed before finishing", async () => {
   const f = fixture()
   const workout = await f.services.workouts.start("routine-full-body")
+  await assert.rejects(f.services.workouts.complete(workout.id), {
+    code: "VALIDATION",
+  })
   await logAll(f, workout)
   let current = await f.services.workouts.addSet(
     workout.id,
     workout.entries[0].id
   )
   assert.equal(suggestProgression(current.entries[0]).advanced, true)
-  current = await f.services.workouts.updateSet(
-    workout.id,
-    workout.entries[0].id,
-    workout.entries[0].sets[0].id,
-    { status: "skipped" }
+  await assert.rejects(f.services.workouts.complete(workout.id), {
+    code: "VALIDATION",
+  })
+  await assert.rejects(
+    f.services.workouts.updateSet(
+      workout.id,
+      workout.entries[0].id,
+      workout.entries[0].sets[0].id,
+      { status: "skipped" }
+    ),
+    { code: "VALIDATION" }
   )
-  assert.equal(suggestProgression(current.entries[0]).advanced, false)
   current = await f.services.workouts.updateSet(
     workout.id,
     workout.entries[0].id,
@@ -225,9 +275,35 @@ test("skips and unfinished prescribed sets block progression; extras never affec
     { status: "pending" }
   )
   assert.equal(suggestProgression(current.entries[0]).advanced, false)
-  await f.services.workouts.abandon(workout.id)
-  assert.equal(f.state().futureTargets.length, 0)
-  await assert.rejects(f.services.workouts.complete(workout.id))
+  await assert.rejects(f.services.workouts.complete(workout.id), {
+    code: "VALIDATION",
+  })
+  const firstSet = workout.entries[0].sets[0]
+  const extraSet = current.entries[0].sets.at(-1)
+  assert.ok(extraSet)
+  await f.services.workouts.updateSet(
+    workout.id,
+    workout.entries[0].id,
+    firstSet.id,
+    {
+      actualReps: 12,
+      actualWeight: firstSet.plannedWeight ?? 0,
+      status: "completed",
+    }
+  )
+  await f.services.workouts.updateSet(
+    workout.id,
+    workout.entries[0].id,
+    extraSet.id,
+    {
+      actualReps: 12,
+      actualWeight: extraSet.plannedWeight ?? 0,
+      status: "completed",
+    }
+  )
+  const completed = await f.services.workouts.complete(workout.id)
+  assert.equal(completed.status, "completed")
+  assert.equal(f.state().futureTargets.length, workout.entries.length)
 })
 
 test("rep progression respects load and cap; manual keeps current target", async () => {
