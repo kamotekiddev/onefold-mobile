@@ -2,12 +2,12 @@ import type { WorkoutEntry, WorkoutSet } from "@/types/domain"
 
 export function nextUnfinishedSetIndex(sets: WorkoutSet[], afterIndex = -1) {
   const next = sets.findIndex(
-    (set, index) => index > afterIndex && set.status === "pending"
+    (set, index) => index > afterIndex && set.status !== "completed"
   )
   if (next !== -1) return next
 
   return sets.findIndex(
-    (set, index) => index <= afterIndex && set.status === "pending"
+    (set, index) => index <= afterIndex && set.status !== "completed"
   )
 }
 

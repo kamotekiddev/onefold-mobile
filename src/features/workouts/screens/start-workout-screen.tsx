@@ -30,7 +30,6 @@ export function StartWorkoutScreen({ routineId }: { routineId: string }) {
   >({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
-  const [abandonConfirm, setAbandonConfirm] = useState(false)
   const [requestId] = useState(
     () => `start-${Date.now()}-${Math.random().toString(36).slice(2)}`
   )
@@ -151,45 +150,13 @@ export function StartWorkoutScreen({ routineId }: { routineId: string }) {
                   You already have a workout in progress
                 </AppText>
                 <AppText color={p.textSecondary}>{active.routineName}</AppText>
+                <AppText variant="caption" color={p.textSecondary}>
+                  Finish this session before starting another workout.
+                </AppText>
                 <Button
                   label="Resume workout"
                   onPress={() => router.replace("/workout/active")}
                 />
-                {abandonConfirm ? (
-                  <>
-                    <AppText color={p.textSecondary}>
-                      Abandoning discards this session from history. Your
-                      routine stays saved.
-                    </AppText>
-                    <Button
-                      label="Confirm abandon"
-                      variant="danger"
-                      loading={busy}
-                      onPress={async () => {
-                        setBusy(true)
-                        try {
-                          await services.workouts.abandon(active.id)
-                          setAbandonConfirm(false)
-                        } catch (failure) {
-                          setError(errorText(failure))
-                        } finally {
-                          setBusy(false)
-                        }
-                      }}
-                    />
-                    <Button
-                      label="Cancel"
-                      variant="secondary"
-                      onPress={() => setAbandonConfirm(false)}
-                    />
-                  </>
-                ) : (
-                  <Button
-                    label="Abandon existing workout"
-                    variant="danger"
-                    onPress={() => setAbandonConfirm(true)}
-                  />
-                )}
               </View>
             ) : (
               <>

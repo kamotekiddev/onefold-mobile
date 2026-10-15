@@ -21,9 +21,9 @@ function entry(
   } as WorkoutEntry
 }
 
-test("resume opens the first exercise and set still pending", () => {
+test("resume opens the first exercise and set still unfinished", () => {
   const entries = [
-    entry(["completed", "skipped"]),
+    entry(["completed", "completed"]),
     entry(["completed", "pending"]),
     entry(["pending"]),
   ]
@@ -31,16 +31,16 @@ test("resume opens the first exercise and set still pending", () => {
   assert.equal(nextUnfinishedSetIndex(entries[1].sets), 1)
 })
 
-test("completing or skipping a set selects the next pending set", () => {
+test("the next unfinished set includes legacy skipped sets", () => {
   const sets = entry(["completed", "skipped", "pending"]).sets
-  assert.equal(nextUnfinishedSetIndex(sets, 0), 2)
+  assert.equal(nextUnfinishedSetIndex(sets, 0), 1)
   assert.equal(nextUnfinishedSetIndex(sets, 1), 2)
-  assert.equal(nextUnfinishedSetIndex(sets, 2), 2)
+  assert.equal(nextUnfinishedSetIndex(sets, 2), 1)
 })
 
-test("completing or skipping the last set advances past finished exercises", () => {
+test("finished exercises advance but skipped sets must be completed", () => {
   const entries = [entry(["completed"]), entry(["skipped"]), entry(["pending"])]
-  assert.equal(nextUnfinishedExerciseIndex(entries, 0), 2)
+  assert.equal(nextUnfinishedExerciseIndex(entries, 0), 1)
   assert.equal(nextUnfinishedExerciseIndex(entries, 1), 2)
 })
 
@@ -51,11 +51,18 @@ test("a pending extra set keeps its exercise in progress", () => {
   assert.equal(nextUnfinishedExerciseIndex(entries), 0)
 })
 
-test("finished sets return no pending set", () => {
-  assert.equal(nextUnfinishedSetIndex(entry(["completed", "skipped"]).sets), -1)
+test("finished sets return no unfinished set", () => {
+  assert.equal(
+    nextUnfinishedSetIndex(entry(["completed", "completed"]).sets),
+    -1
+  )
 })
 
 test("unfinished earlier exercise remains reachable when the later one ends", () => {
-  const entries = [entry(["pending"]), entry(["completed"]), entry(["skipped"])]
+  const entries = [
+    entry(["pending"]),
+    entry(["completed"]),
+    entry(["completed"]),
+  ]
   assert.equal(nextUnfinishedExerciseIndex(entries, 2), 0)
 })

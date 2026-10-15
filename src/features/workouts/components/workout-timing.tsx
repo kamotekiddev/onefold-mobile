@@ -1,7 +1,9 @@
-import { StyleSheet, View } from "react-native"
+import { useEffect, useRef } from "react"
+import { Modal, StyleSheet, View } from "react-native"
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"
 
 import { AppText } from "@/components/ui"
-import { Radii, usePalette } from "@/constants/theme"
+import { MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
 import type { RestTimer } from "@/types/domain"
 
@@ -24,77 +26,144 @@ export function WorkoutRestTimer({
   workoutId,
   busy,
   perform,
+  onExpireError,
 }: {
   timer: RestTimer
   workoutId: string
   busy: boolean
   perform: (action: () => Promise<unknown>) => Promise<void>
+  onExpireError: (failure: unknown) => void
 }) {
   const now = useNow()
   const p = usePalette()
   const { services } = useApp()
   const remaining = Math.max(0, Math.ceil((timer.endsAt - now) / 1000))
+  const expiring = useRef(false)
+
+  useEffect(() => {
+    if (remaining > 0 || expiring.current) return
+    expiring.current = true
+    void services.workouts
+      .updateTimer(workoutId, { type: "expire" })
+      .catch(onExpireError)
+      .finally(() => {
+        expiring.current = false
+      })
+  }, [onExpireError, remaining, services, workoutId])
+
+  const skipRest = () =>
+    void perform(() =>
+      services.workouts.updateTimer(workoutId, { type: "clear" })
+    )
+
   return (
-    <View style={[styles.timer, { backgroundColor: p.accentSoft }]}>
-      <View style={styles.heading}>
-        <AppText variant="caption" color={p.accent} style={styles.label}>
-          {remaining > 0 ? "Rest between sets" : "Ready for your next set"}
-        </AppText>
-        <AppText variant="heading" color={p.accent} style={styles.clock}>
-          {elapsed(remaining)}
-        </AppText>
-      </View>
-      <View style={styles.actions}>
-        {([-15, 15] as const).map((seconds) => (
-          <View key={seconds} style={styles.action}>
-            <WorkoutAction
-              label={seconds < 0 ? "−15 sec" : "+15 sec"}
-              accessibilityLabel={
-                seconds < 0
-                  ? "Reduce rest by 15 seconds"
-                  : "Extend rest by 15 seconds"
-              }
-              variant="secondary"
-              disabled={busy || (seconds < 0 && remaining === 0)}
-              onPress={() =>
-                void perform(() =>
-                  services.workouts.updateTimer(workoutId, {
-                    type: "adjust",
-                    seconds,
-                  })
-                )
-              }
-            />
+    <Modal
+      visible={remaining > 0}
+      animationType="fade"
+      presentationStyle="fullScreen"
+      statusBarTranslucent
+      navigationBarTranslucent
+      backdropColor={p.background}
+      onRequestClose={skipRest}
+    >
+      <SafeAreaProvider>
+        <SafeAreaView
+          edges={["top", "right", "bottom", "left"]}
+          style={[styles.timer, { backgroundColor: p.background }]}
+        >
+          <View style={styles.content}>
+            <View style={styles.topLine}>
+              <View
+                style={[styles.statusPill, { backgroundColor: p.accentSoft }]}
+              >
+                <AppText
+                  variant="caption"
+                  color={p.accent}
+                  style={styles.label}
+                >
+                  REST TIME
+                </AppText>
+              </View>
+            </View>
+            <View style={styles.center}>
+              <AppText variant="heading" style={styles.heading}>
+                Take a breather
+              </AppText>
+              <AppText color={p.accent} style={styles.countdown}>
+                {elapsed(remaining)}
+              </AppText>
+              <AppText color={p.textSecondary} style={styles.helper}>
+                Your next set will appear when the timer ends.
+              </AppText>
+            </View>
+            <View style={styles.actions}>
+              <View style={styles.adjustments}>
+                {([-15, 15] as const).map((seconds) => (
+                  <View key={seconds} style={styles.adjustment}>
+                    <WorkoutAction
+                      label={seconds < 0 ? "−15 sec" : "+15 sec"}
+                      accessibilityLabel={
+                        seconds < 0
+                          ? "Reduce rest by 15 seconds"
+                          : "Extend rest by 15 seconds"
+                      }
+                      variant="secondary"
+                      disabled={busy}
+                      onPress={() =>
+                        void perform(() =>
+                          services.workouts.updateTimer(workoutId, {
+                            type: "adjust",
+                            seconds,
+                          })
+                        )
+                      }
+                    />
+                  </View>
+                ))}
+              </View>
+              <WorkoutAction
+                label="Skip rest"
+                variant="secondary"
+                disabled={busy}
+                onPress={skipRest}
+              />
+            </View>
           </View>
-        ))}
-        <View style={styles.action}>
-          <WorkoutAction
-            label={remaining > 0 ? "Skip rest" : "Dismiss"}
-            variant="secondary"
-            disabled={busy}
-            onPress={() =>
-              void perform(() =>
-                services.workouts.updateTimer(workoutId, { type: "clear" })
-              )
-            }
-          />
-        </View>
-      </View>
-    </View>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </Modal>
   )
 }
 
 const styles = StyleSheet.create({
-  timer: { borderRadius: Radii.card, padding: 12, gap: 8 },
-  heading: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+  timer: { flex: 1 },
+  content: {
+    alignSelf: "center",
+    flex: 1,
+    maxWidth: MaxContentWidth,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    width: "100%",
   },
-  label: { fontWeight: "600" },
+  topLine: { alignItems: "flex-start" },
+  statusPill: {
+    borderRadius: Radii.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  label: { fontWeight: "700", letterSpacing: 1 },
+  center: { alignItems: "center", flex: 1, justifyContent: "center", gap: 16 },
+  heading: { textAlign: "center" },
+  countdown: {
+    fontSize: 80,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+    lineHeight: 96,
+    textAlign: "center",
+  },
+  helper: { maxWidth: 280, textAlign: "center" },
+  actions: { gap: 12 },
+  adjustments: { flexDirection: "row", gap: 12 },
+  adjustment: { flex: 1 },
   clock: { fontVariant: ["tabular-nums"] },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  action: { flex: 1, minWidth: 80 },
 })

@@ -25,7 +25,6 @@ import type { Workout } from "@/types/domain"
 import { ExerciseGuide } from "../components/exercise-guide"
 import { SetRow } from "../components/set-row"
 import { WorkoutAction } from "../components/workout-action"
-import { WorkoutConfirmation } from "../components/workout-confirmation"
 import { WorkoutElapsed, WorkoutRestTimer } from "../components/workout-timing"
 import { useWorkoutDrafts } from "../hooks/use-drafts"
 import { errorText, workoutCounts } from "../utils/display"
@@ -57,14 +56,14 @@ export function ActiveWorkoutScreen() {
   })
   const selectedSetIndex =
     currentEntry?.sets.findIndex((set) => set.id === setSelection.setId) ?? -1
-  const pendingSetIndex = nextUnfinishedSetIndex(currentEntry?.sets ?? [])
+  const unfinishedSetIndex = nextUnfinishedSetIndex(currentEntry?.sets ?? [])
   const currentSetIndex =
     setSelection.workoutId === workout?.id &&
     setSelection.entryId === currentEntry?.id &&
     selectedSetIndex !== -1
       ? selectedSetIndex
-      : pendingSetIndex !== -1
-        ? pendingSetIndex
+      : unfinishedSetIndex !== -1
+        ? unfinishedSetIndex
         : Math.max(0, (currentEntry?.sets.length ?? 1) - 1)
   const currentSet = currentEntry?.sets[currentSetIndex]
   const sections = useMemo(
@@ -83,7 +82,6 @@ export function ActiveWorkoutScreen() {
   const unit = state.data?.preferences.weightUnit ?? "kg"
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
-  const [confirm, setConfirm] = useState<"finish" | "abandon" | null>(null)
   const onSetFinished = useCallback(
     (updated: Workout, entryId: string, setId: string) => {
       const finishedIndex = updated.entries.findIndex(
@@ -137,6 +135,9 @@ export function ActiveWorkoutScreen() {
       </Screen>
     )
   const counts = workoutCounts(workout)
+  const remainingSets = workout.entries
+    .flatMap((entry) => entry.sets)
+    .filter((set) => set.status !== "completed").length
   const nextActiveIndex = nextUnfinishedExerciseIndex(workout.entries)
   const showCurrentAction = currentIndex !== nextActiveIndex
   const selectExercise = (index: number) => {
@@ -170,11 +171,6 @@ export function ActiveWorkoutScreen() {
         params: { id: completed.id },
       })
     })
-  const requestConfirmation = (kind: "finish" | "abandon") => {
-    Keyboard.dismiss()
-    setError("")
-    setConfirm(kind)
-  }
   return (
     <View style={[styles.root, { backgroundColor: p.background }]}>
       <KeyboardAvoidingView
@@ -321,10 +317,10 @@ export function ActiveWorkoutScreen() {
                       { backgroundColor: p.surface, borderColor: p.border },
                     ]}
                   >
-                    <AppText variant="heading">Workout sets reviewed</AppText>
+                    <AppText variant="heading">All sets complete</AppText>
                     <AppText color={p.textSecondary}>
-                      Every set is complete or skipped. Review a previous
-                      exercise or finish this workout.
+                      Every set is complete. Review a previous exercise or
+                      finish this workout.
                     </AppText>
                   </View>
                 )}
@@ -384,18 +380,18 @@ export function ActiveWorkoutScreen() {
                         <WorkoutAction
                           label="Next set"
                           variant="secondary"
-                          disabled={currentSet?.status === "pending"}
+                          disabled={currentSet?.status !== "completed"}
                           onPress={() => selectSet(currentSetIndex + 1)}
                         />
                       </View>
                     )}
-                    {pendingSetIndex !== -1 &&
-                      currentSetIndex !== pendingSetIndex && (
+                    {unfinishedSetIndex !== -1 &&
+                      currentSetIndex !== unfinishedSetIndex && (
                         <View style={styles.navigationAction}>
                           <WorkoutAction
                             label="Current set"
                             variant="secondary"
-                            onPress={() => selectSet(pendingSetIndex)}
+                            onPress={() => selectSet(unfinishedSetIndex)}
                           />
                         </View>
                       )}
@@ -422,7 +418,7 @@ export function ActiveWorkoutScreen() {
                   disabled={
                     busy ||
                     currentSetIndex < section.entry.sets.length - 1 ||
-                    currentSet?.status === "pending"
+                    currentSet?.status !== "completed"
                   }
                   onPress={() =>
                     void perform(async () => {
@@ -451,12 +447,6 @@ export function ActiveWorkoutScreen() {
                   Your sets save as you go. You can leave and resume this
                   workout anytime.
                 </AppText>
-                <WorkoutAction
-                  label="Abandon workout"
-                  variant="danger"
-                  disabled={busy}
-                  onPress={() => requestConfirmation("abandon")}
-                />
               </View>
             }
           />
@@ -469,43 +459,32 @@ export function ActiveWorkoutScreen() {
           ]}
         >
           <View style={styles.bottomContent}>
-            {workout.restTimer && (
-              <WorkoutRestTimer
-                timer={workout.restTimer}
-                workoutId={workout.id}
-                busy={busy}
-                perform={perform}
-              />
-            )}
             <WorkoutAction
               label="Finish workout"
-              loading={busy && confirm !== "abandon"}
-              disabled={busy || failedDrafts || savingDrafts}
-              onPress={() =>
-                counts.completed < counts.planned
-                  ? requestConfirmation("finish")
-                  : finish()
+              loading={busy}
+              disabled={
+                busy || failedDrafts || savingDrafts || remainingSets > 0
               }
+              onPress={finish}
             />
+            {remainingSets > 0 && (
+              <AppText variant="caption" color={p.textSecondary}>
+                Complete {remainingSets} remaining{" "}
+                {remainingSets === 1 ? "set" : "sets"} to finish.
+              </AppText>
+            )}
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
-      <WorkoutConfirmation
-        kind={confirm}
-        remaining={counts.planned - counts.completed}
-        busy={busy}
-        disabled={confirm === "finish" && (failedDrafts || savingDrafts)}
-        error={error}
-        onCancel={() => setConfirm(null)}
-        onConfirm={() => {
-          if (confirm === "finish") finish()
-          else
-            void perform(async () => {
-              await services.workouts.abandon(workout.id)
-              router.replace("/")
-            })
-        }}
-      />
+      {workout.restTimer && (
+        <WorkoutRestTimer
+          timer={workout.restTimer}
+          workoutId={workout.id}
+          busy={busy}
+          perform={perform}
+          onExpireError={(failure) => setError(errorText(failure))}
+        />
+      )}
     </View>
   )
 }

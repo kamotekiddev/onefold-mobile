@@ -51,7 +51,10 @@ export interface WorkoutService {
   getById(id: string): Promise<Workout>
   updateTimer(
     id: string,
-    action: { type: "clear" } | { type: "adjust"; seconds: number }
+    action:
+      | { type: "clear" }
+      | { type: "expire" }
+      | { type: "adjust"; seconds: number }
   ): Promise<Workout>
 }
 export interface Services {
