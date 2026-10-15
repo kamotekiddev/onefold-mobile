@@ -166,6 +166,7 @@ export function createServices(
               order,
               prescriptionRevision: 1,
             })),
+            scheduledDays: input.scheduledDays ?? [],
             createdAt: now(),
             updatedAt: now(),
           }
@@ -211,6 +212,7 @@ export function createServices(
               )
           )
           routine.name = input.name.trim()
+          routine.scheduledDays = input.scheduledDays ?? []
           routine.updatedAt = now()
           return routine
         })
@@ -226,6 +228,7 @@ export function createServices(
             ...original,
             id: newId("routine"),
             name: `${original.name} (copy)`,
+            scheduledDays: original.scheduledDays ?? [],
             entries: original.entries.map((entry) => ({
               ...entry,
               id: newId("entry"),

@@ -16,9 +16,20 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { AppText, Button, ErrorMessage, Field, Screen } from "@/components/ui"
 import { MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
+import type { Weekday } from "@/types/domain"
 
 import { useRoutineDraft } from "../hooks/draft"
 import { confirmAction, errorText, prescriptionText } from "../utils"
+
+const weekdays: { day: Weekday; label: string; name: string }[] = [
+  { day: 1, label: "Mo", name: "Monday" },
+  { day: 2, label: "Tu", name: "Tuesday" },
+  { day: 3, label: "We", name: "Wednesday" },
+  { day: 4, label: "Th", name: "Thursday" },
+  { day: 5, label: "Fr", name: "Friday" },
+  { day: 6, label: "Sa", name: "Saturday" },
+  { day: 0, label: "Su", name: "Sunday" },
+]
 
 export function RoutineEditorScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>()
@@ -38,14 +49,19 @@ export function RoutineEditorScreen() {
     const load = async () => {
       const value = await (id
         ? services.routines.getById(id)
-        : Promise.resolve({ name: "", entries: [] }))
+        : Promise.resolve({ name: "", entries: [], scheduledDays: [] }))
       if (alive)
         setDraft({
           routineId: id,
-          value: { name: value.name, entries: value.entries },
+          value: {
+            name: value.name,
+            entries: value.entries,
+            scheduledDays: value.scheduledDays ?? [],
+          },
           baseline: JSON.stringify({
             name: value.name,
             entries: value.entries,
+            scheduledDays: value.scheduledDays ?? [],
           }),
         })
     }
@@ -195,6 +211,85 @@ export function RoutineEditorScreen() {
                       )
                     }
                   />
+                </View>
+
+                <View
+                  style={[
+                    styles.scheduleCard,
+                    { backgroundColor: p.surface, borderColor: p.border },
+                  ]}
+                >
+                  <View style={styles.scheduleCopy}>
+                    <AppText variant="heading">Weekly schedule</AppText>
+                    <AppText variant="caption" color={p.textSecondary}>
+                      Pick the days you plan to do this routine. It will appear
+                      on your Routines screen on those days.
+                    </AppText>
+                  </View>
+                  <View style={styles.weekdayList}>
+                    {weekdays.map(({ day, label, name }) => {
+                      const selected =
+                        draft.value.scheduledDays?.includes(day) ?? false
+                      return (
+                        <Pressable
+                          key={day}
+                          accessibilityLabel={name}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{
+                            checked: selected,
+                            disabled: busy,
+                          }}
+                          disabled={busy}
+                          onPress={() =>
+                            setDraft(
+                              (current) =>
+                                current && {
+                                  ...current,
+                                  value: {
+                                    ...current.value,
+                                    scheduledDays: selected
+                                      ? (
+                                          current.value.scheduledDays ?? []
+                                        ).filter(
+                                          (scheduledDay) => scheduledDay !== day
+                                        )
+                                      : [
+                                          ...(current.value.scheduledDays ??
+                                            []),
+                                          day,
+                                        ],
+                                  },
+                                }
+                            )
+                          }
+                          style={({ pressed }) => [
+                            styles.weekdayButton,
+                            {
+                              backgroundColor: selected
+                                ? p.accent
+                                : pressed
+                                  ? p.backgroundElement
+                                  : p.background,
+                              borderColor: selected ? p.accent : p.border,
+                            },
+                          ]}
+                        >
+                          <AppText
+                            variant="caption"
+                            color={selected ? p.accentText : p.textSecondary}
+                            style={styles.weekdayLabel}
+                          >
+                            {label}
+                          </AppText>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+                  <AppText variant="caption" color={p.textSecondary}>
+                    {draft.value.scheduledDays?.length
+                      ? `${draft.value.scheduledDays.length} ${draft.value.scheduledDays.length === 1 ? "day" : "days"} selected`
+                      : "Optional · no days scheduled"}
+                  </AppText>
                 </View>
 
                 {error ? <ErrorMessage message={error} /> : null}
@@ -447,6 +542,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 16,
   },
+  scheduleCard: {
+    borderRadius: Radii.card,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16,
+  },
+  scheduleCopy: { gap: 4 },
+  weekdayList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  weekdayButton: {
+    alignItems: "center",
+    borderRadius: Radii.control,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  weekdayLabel: { fontWeight: "600" },
   sectionHeader: {
     alignItems: "flex-end",
     flexDirection: "row",

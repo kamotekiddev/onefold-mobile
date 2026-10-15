@@ -18,6 +18,14 @@ export function validateRoutine(input: RoutineInput, catalog: Exercise[]) {
   if (!input.entries.length)
     throw new ServiceError("VALIDATION", "Add at least one exercise.")
   if (
+    input.scheduledDays &&
+    (input.scheduledDays.some(
+      (day) => !Number.isInteger(day) || day < 0 || day > 6
+    ) ||
+      new Set(input.scheduledDays).size !== input.scheduledDays.length)
+  )
+    throw new ServiceError("VALIDATION", "Choose valid days for your routine.")
+  if (
     new Set(input.entries.map((entry) => entry.id)).size !==
     input.entries.length
   )

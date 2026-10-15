@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import type { AppData, Workout } from "../../types/domain"
+import type { AppData, Weekday, Workout } from "../../types/domain"
 import { createServices } from "./mock-services"
 import { makeSeed } from "./seed"
 import { suggestProgression } from "./progression"
@@ -54,6 +54,33 @@ async function logAll(
         status: "completed",
       })
 }
+
+test("routine weekly schedule persists through create, update, and duplicate", async () => {
+  const f = fixture()
+  const routine = f.state().routines[0]
+  const mondayAndWednesday = {
+    ...routine,
+    scheduledDays: [1, 3] as Weekday[],
+  }
+  const updated = await f.services.routines.update(
+    routine.id,
+    mondayAndWednesday
+  )
+  assert.deepEqual(updated.scheduledDays, [1, 3])
+
+  const duplicate = await f.services.routines.duplicate(routine.id)
+  assert.deepEqual(duplicate.scheduledDays, [1, 3])
+
+  const movedToFriday = await f.services.routines.update(routine.id, {
+    ...updated,
+    scheduledDays: [5] as Weekday[],
+  })
+  assert.deepEqual(movedToFriday.scheduledDays, [5])
+  assert.deepEqual(
+    (await f.services.routines.getById(duplicate.id)).scheduledDays,
+    [1, 3]
+  )
+})
 
 test("start request is idempotent, another start conflicts, finish applies progression once", async () => {
   const f = fixture()
