@@ -84,6 +84,43 @@
         }
       },
       "updatedAt": "2026-10-13T07:40:00Z"
+    },
+    "/workout/active": {
+      "targetKind": "existing-ui",
+      "projectId": "f6c32b97-bd84-415f-ab7c-3d9a61bd2ca4",
+      "baselineDraftId": "0f737cbe-b118-436b-b105-0cb4bd3d3de2",
+      "activeDraftId": "0f737cbe-b118-436b-b105-0cb4bd3d3de2",
+      "designSystemPath": ".superdesign/design-system.md",
+      "referenceIds": [],
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "src/constants/theme.ts",
+        "src/components/ui/index.tsx",
+        "src/features/workouts/screens/active-workout-screen.tsx",
+        "src/features/workouts/components/set-row.tsx",
+        "src/app/(app)/_layout.tsx",
+        "src/app/_layout.tsx",
+        "src/features/history/screens/history-screen.tsx"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "99901b8de953b1b964162dfd6c6cdfc439958cb1308319676e37145dc05b46ba",
+        "src/constants/theme.ts": "b8821677169237319a7de4b6fddc6fcc6cc1247b619e922c6a576aca9fe47b06",
+        "src/components/ui/index.tsx": "34cc82af2f0b0469b8e2f91f0726673e8028f99fcba177c61dce980e2115b5b3",
+        "src/features/workouts/screens/active-workout-screen.tsx": "6428682544a8f96500c9c568a9ec3930523293078b95134a307c49c6d9fe0226",
+        "src/features/workouts/components/set-row.tsx": "d1e82405acbd5e78a0308a1b6f4046de9761e5b25c4227d1c23760326cdc1916",
+        "src/app/(app)/_layout.tsx": "0b545c16e2039d34b940cdbf1cedf0f11008eb5874e2be9a31be951e8f44de07",
+        "src/app/_layout.tsx": "bcd35bf44c34c10d59b195d2b0789fc9c693c273395ff187c4c884590c4c5e1c",
+        "src/features/history/screens/history-screen.tsx": "4b30d3ef9c6220a46216701e6368af30d5aca5aaaf0f69d01fa373d6d28aabb1"
+      },
+      "components": [],
+      "drafts": {
+        "0f737cbe-b118-436b-b105-0cb4bd3d3de2": {
+          "title": "Onefold Active Workout - Updated Mobile Design",
+          "visualDirection": "compact teal workout screen with planned-set progress, numbered exercises, compact set cards, rest controls and bottom finish action",
+          "currentVersion": 2
+        }
+      },
+      "updatedAt": "2026-10-15T07:27:04.903559+00:00"
     }
   }
 }
