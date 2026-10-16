@@ -4,21 +4,12 @@ import type {
   ExerciseQuery,
   Routine,
   RoutineInput,
-  SessionIdentity,
   SetUpdate,
   StartOptions,
   WeightUnit,
   Workout,
 } from "@/types/domain"
 import { createServices } from "./domain/mock-services"
-import { appStore } from "./storage/app-store"
-export interface AuthService {
-  signIn(email: string, password: string): Promise<SessionIdentity>
-  register(email: string, password: string): Promise<SessionIdentity>
-  requestPasswordReset(email: string): Promise<void>
-  getSession(): Promise<SessionIdentity | null>
-  signOut(): Promise<void>
-}
 export interface ExerciseService {
   search(query?: ExerciseQuery): Promise<Exercise[]>
   getById(id: string): Promise<Exercise>
@@ -58,7 +49,6 @@ export interface WorkoutService {
   ): Promise<Workout>
 }
 export interface Services {
-  auth: AuthService
   exercises: ExerciseService
   routines: RoutineService
   workouts: WorkoutService
@@ -69,5 +59,4 @@ export interface DataStore {
   read(): Promise<AppData>
   mutate<T>(fn: (data: AppData) => T): Promise<T>
 }
-export { appStore }
-export const services: Services = createServices(appStore)
+export { createServices }

@@ -34,10 +34,6 @@ export interface Routine {
 export type RoutineInput = Pick<Routine, "name" | "entries"> & {
   scheduledDays?: Weekday[]
 }
-export interface SessionIdentity {
-  id: string
-  email: string
-}
 export interface WorkoutSet {
   id: string
   kind: "prescribed" | "extra"
@@ -90,8 +86,7 @@ export interface FutureTarget extends ProgressionSuggestion {
   sourceWorkoutId: string
 }
 export interface AppData {
-  schemaVersion: 1
-  session: SessionIdentity | null
+  schemaVersion: 2
   exercises: Exercise[]
   routines: Routine[]
   workouts: Workout[]

@@ -54,8 +54,7 @@ export function makeSeed(now = Date.now()): AppData {
     prescriptionRevision: 1,
   })
   return {
-    schemaVersion: 1,
-    session: null,
+    schemaVersion: 2,
     exercises,
     routines: [
       {

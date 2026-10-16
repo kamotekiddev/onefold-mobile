@@ -10,9 +10,10 @@ import {
   type KeyboardTypeOptions,
 } from "react-native"
 
-import { AppText, Card, ErrorMessage, Screen } from "@/components/ui"
+import { AppText, ErrorMessage, Screen } from "@/components/ui"
 import { usePalette } from "@/constants/theme"
-import { useApp } from "@/lib/app-provider"
+import { ApiError } from "@/lib/api-client"
+import { useAuth } from "../auth-provider"
 
 import { validateAuth, type AuthMode } from "../utils/validation"
 
@@ -39,7 +40,7 @@ function SocialButton({
       accessibilityLabel={label}
       accessibilityState={{ disabled: true }}
       disabled
-      style={styles.touchTarget}
+      style={[styles.touchTarget, styles.disabledControl]}
     >
       <View
         style={[
@@ -116,11 +117,13 @@ function AuthField({
 function PrimaryAction({
   label,
   loading,
+  disabled = false,
   onPress,
   palette,
 }: {
   label: string
   loading: boolean
+  disabled?: boolean
   onPress: () => void
   palette: Palette
 }) {
@@ -128,8 +131,8 @@ function PrimaryAction({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ busy: loading, disabled: loading }}
-      disabled={loading}
+      accessibilityState={{ busy: loading, disabled: loading || disabled }}
+      disabled={loading || disabled}
       onPress={onPress}
       style={styles.touchTarget}
     >
@@ -138,6 +141,7 @@ function PrimaryAction({
           styles.primaryButton,
           { backgroundColor: palette.accent },
           loading ? styles.loading : undefined,
+          disabled ? styles.disabledControl : undefined,
         ]}
       >
         {loading ? (
@@ -156,17 +160,21 @@ function TextAction({
   label,
   onPress,
   palette,
+  disabled = false,
 }: {
   label: string
-  onPress: () => void
+  onPress?: () => void
   palette: Palette
+  disabled?: boolean
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
-      style={styles.textAction}
+      style={[styles.textAction, disabled ? styles.disabledControl : undefined]}
     >
       <AppText color={palette.accent} style={styles.textActionLabel}>
         {label}
@@ -176,7 +184,7 @@ function TextAction({
 }
 
 export function AuthScreen({ mode }: { mode: AuthMode }) {
-  const { services } = useApp()
+  const auth = useAuth()
   const p = usePalette()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -185,10 +193,9 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
   const [errors, setErrors] = useState<ReturnType<typeof validateAuth>>({})
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
-  const [sent, setSent] = useState(false)
   const pending = useRef(false)
   const submit = async () => {
-    if (pending.current) return
+    if (pending.current || mode === "forgot-password") return
     const validation = validateAuth(mode, email, password, confirmation)
     setErrors(validation)
     if (Object.keys(validation).length) return
@@ -196,15 +203,14 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
     setBusy(true)
     setError("")
     try {
-      if (mode === "forgot-password") {
-        await services.auth.requestPasswordReset(email)
-        setSent(true)
-      } else if (mode === "register")
-        await services.auth.register(email, password)
-      else await services.auth.signIn(email, password)
+      if (mode === "register") await auth.register(email, password)
+      else await auth.signIn(email, password)
       setPassword("")
       setConfirmation("")
     } catch (e) {
+      if (e instanceof ApiError) {
+        setErrors({ email: e.fields.email, password: e.fields.password })
+      }
       setError(
         e instanceof Error ? e.message : "Unable to continue. Please retry."
       )
@@ -226,7 +232,7 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
           </AppText>
         </View>
 
-        {mode === "sign-in" && !sent ? (
+        {mode === "sign-in" ? (
           <>
             <View style={styles.socialStack}>
               <SocialButton label="Continue with Google" mark="G" palette={p} />
@@ -236,6 +242,9 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
                 palette={p}
               />
             </View>
+            <AppText variant="caption" color={p.textSecondary}>
+              Google and Apple sign-in are coming soon.
+            </AppText>
             <View style={styles.divider}>
               <View
                 style={[styles.dividerLine, { backgroundColor: p.border }]}
@@ -250,20 +259,27 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
           </>
         ) : null}
 
-        {sent ? (
-          <Card>
-            <AppText variant="heading">Demo request received</AppText>
-            <AppText>
-              No email was sent. You can return and sign in with any valid email
-              and a nonempty demo password.
+        {mode === "forgot-password" ? (
+          <View style={styles.form}>
+            <AppText color={p.textSecondary}>
+              Password reset is coming soon. You can return to sign in.
             </AppText>
-            <PrimaryAction
-              label="Back to sign in"
-              loading={false}
-              onPress={() => router.replace("/sign-in")}
+            <AuthField
+              label="Email address"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              placeholder="you@example.com"
               palette={p}
             />
-          </Card>
+            <PrimaryAction
+              label="Reset password · Coming soon"
+              loading={false}
+              disabled
+              onPress={() => undefined}
+              palette={p}
+            />
+          </View>
         ) : (
           <View style={styles.form}>
             <AuthField
@@ -275,30 +291,28 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
               placeholder="you@example.com"
               palette={p}
             />
-            {mode !== "forgot-password" ? (
-              <AuthField
-                label="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!visible}
-                error={errors.password}
-                palette={p}
-                trailing={
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      visible ? "Hide password" : "Show password"
-                    }
-                    onPress={() => setVisible(!visible)}
-                    style={styles.fieldAction}
-                  >
-                    <AppText color={p.accent} style={styles.fieldActionLabel}>
-                      {visible ? "Hide" : "Show"}
-                    </AppText>
-                  </Pressable>
-                }
-              />
-            ) : null}
+            <AuthField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!visible}
+              error={errors.password}
+              palette={p}
+              trailing={
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    visible ? "Hide password" : "Show password"
+                  }
+                  onPress={() => setVisible(!visible)}
+                  style={styles.fieldAction}
+                >
+                  <AppText color={p.accent} style={styles.fieldActionLabel}>
+                    {visible ? "Hide" : "Show"}
+                  </AppText>
+                </Pressable>
+              }
+            />
             {mode === "register" ? (
               <AuthField
                 label="Confirm password"
@@ -309,14 +323,16 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
                 palette={p}
               />
             ) : null}
-            {error ? <ErrorMessage message={error} /> : null}
+            {error || auth.state.error ? (
+              <ErrorMessage message={error || auth.state.error!} />
+            ) : null}
             <PrimaryAction
               label={
                 mode === "sign-in"
-                  ? "Sign in to demo"
+                  ? "Sign in"
                   : mode === "register"
-                    ? "Create demo account"
-                    : "Simulate password reset"
+                    ? "Create account"
+                    : "Reset password · Coming soon"
               }
               loading={busy}
               onPress={() => void submit()}
@@ -325,44 +341,42 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
           </View>
         )}
 
-        {!sent ? (
-          mode === "sign-in" ? (
-            <View style={styles.secondaryActions}>
-              <TextAction
-                label="Create demo account"
-                onPress={() => router.push("/register")}
-                palette={p}
-              />
-              <TextAction
-                label="Forgot password?"
-                onPress={() => router.push("/forgot-password")}
-                palette={p}
-              />
-            </View>
-          ) : (
-            <View style={styles.secondaryActions}>
-              <TextAction
-                label="Back to sign in"
-                onPress={() => router.replace("/sign-in")}
-                palette={p}
-              />
-            </View>
-          )
-        ) : null}
+        {mode === "sign-in" ? (
+          <View style={styles.secondaryActions}>
+            <TextAction
+              label="Create account"
+              onPress={() => router.push("/register")}
+              palette={p}
+            />
+            <TextAction
+              label="Forgot password? · Coming soon"
+              disabled
+              palette={p}
+            />
+          </View>
+        ) : (
+          <View style={styles.secondaryActions}>
+            <TextAction
+              label="Back to sign in"
+              onPress={() => router.replace("/sign-in")}
+              palette={p}
+            />
+          </View>
+        )}
 
         <View
           style={[styles.demoNotice, { backgroundColor: p.backgroundElement }]}
         >
           <AppText variant="caption" style={styles.demoTitle}>
-            Demo mode
+            Local training data
           </AppText>
           <AppText
             variant="caption"
             color={p.textSecondary}
             style={styles.demoCopy}
           >
-            Accounts are simulated. Use any valid email and a demo password. No
-            real registration or reset email occurs. Passwords are never saved.
+            Your routines and workouts stay on this device, separate for each
+            account.
           </AppText>
         </View>
 
@@ -454,6 +468,7 @@ const styles = StyleSheet.create({
   },
   primaryLabel: { fontSize: 16, lineHeight: 20, fontWeight: "600" },
   loading: { opacity: 0.75 },
+  disabledControl: { opacity: 0.5 },
   secondaryActions: {
     flexDirection: "row",
     flexWrap: "wrap",
