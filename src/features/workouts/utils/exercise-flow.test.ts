@@ -31,6 +31,20 @@ test("resume opens the first exercise and set still unfinished", () => {
   assert.equal(nextUnfinishedSetIndex(entries[1].sets), 1)
 })
 
+test("exercise progression waits for every set and ends at the completion step", () => {
+  const entries = [entry(["pending", "pending"]), entry(["pending"])]
+  assert.equal(nextUnfinishedExerciseIndex(entries), 0)
+
+  entries[0].sets[0].status = "completed"
+  assert.equal(nextUnfinishedExerciseIndex(entries), 0)
+
+  entries[0].sets[1].status = "completed"
+  assert.equal(nextUnfinishedExerciseIndex(entries), 1)
+
+  entries[1].sets[0].status = "completed"
+  assert.equal(nextUnfinishedExerciseIndex(entries), entries.length)
+})
+
 test("the next unfinished set includes legacy skipped sets", () => {
   const sets = entry(["completed", "skipped", "pending"]).sets
   assert.equal(nextUnfinishedSetIndex(sets, 0), 1)
