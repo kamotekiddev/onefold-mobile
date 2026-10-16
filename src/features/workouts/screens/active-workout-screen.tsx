@@ -40,14 +40,10 @@ export function ActiveWorkoutScreen() {
   const workout = state.data?.workouts.find(
     (item) => item.status === "inProgress"
   )
-  const [selection, setExerciseSelection] = useState(() => ({
-    workoutId: workout?.id ?? "",
-    index: nextUnfinishedExerciseIndex(workout?.entries ?? []),
-  }))
-  const currentIndex =
-    selection.workoutId === workout?.id
-      ? Math.min(selection.index, workout.entries.length)
-      : nextUnfinishedExerciseIndex(workout?.entries ?? [])
+  const currentIndex = useMemo(
+    () => nextUnfinishedExerciseIndex(workout?.entries ?? []),
+    [workout]
+  )
   const currentEntry = workout?.entries[currentIndex]
   const [setSelection, setSetSelection] = useState({
     workoutId: "",
@@ -100,10 +96,6 @@ export function ActiveWorkoutScreen() {
         return
       }
       setSetSelection({ workoutId: "", entryId: "", setId: "" })
-      setExerciseSelection({
-        workoutId: updated.id,
-        index: nextUnfinishedExerciseIndex(updated.entries, finishedIndex),
-      })
     },
     []
   )
@@ -138,12 +130,6 @@ export function ActiveWorkoutScreen() {
   const remainingSets = workout.entries
     .flatMap((entry) => entry.sets)
     .filter((set) => set.status !== "completed").length
-  const nextActiveIndex = nextUnfinishedExerciseIndex(workout.entries)
-  const showCurrentAction = currentIndex !== nextActiveIndex
-  const selectExercise = (index: number) => {
-    Keyboard.dismiss()
-    setExerciseSelection({ workoutId: workout.id, index })
-  }
   const selectSet = (index: number) => {
     const set = currentEntry?.sets[index]
     if (!currentEntry || !set) return
@@ -275,7 +261,7 @@ export function ActiveWorkoutScreen() {
                     Saving inputs…
                   </AppText>
                 )}
-                <View style={styles.exerciseNavigation}>
+                <View style={styles.exerciseProgress}>
                   <AppText
                     variant="caption"
                     color={p.accent}
@@ -285,30 +271,6 @@ export function ActiveWorkoutScreen() {
                       ? `Exercise ${currentIndex + 1} of ${workout.entries.length}`
                       : "No sets left to log"}
                   </AppText>
-                  <View style={styles.navigationActions}>
-                    {currentIndex > 0 && (
-                      <View style={styles.navigationAction}>
-                        <WorkoutAction
-                          label="Previous exercise"
-                          variant="secondary"
-                          onPress={() => selectExercise(currentIndex - 1)}
-                        />
-                      </View>
-                    )}
-                    {showCurrentAction && (
-                      <View style={styles.navigationAction}>
-                        <WorkoutAction
-                          label={
-                            nextActiveIndex === workout.entries.length
-                              ? "Session overview"
-                              : "Current exercise"
-                          }
-                          variant="secondary"
-                          onPress={() => selectExercise(nextActiveIndex)}
-                        />
-                      </View>
-                    )}
-                  </View>
                 </View>
                 {!currentEntry && (
                   <View
@@ -319,8 +281,8 @@ export function ActiveWorkoutScreen() {
                   >
                     <AppText variant="heading">All sets complete</AppText>
                     <AppText color={p.textSecondary}>
-                      Every set is complete. Review a previous exercise or
-                      finish this workout.
+                      Every set is complete. Finish this workout when you’re
+                      ready.
                     </AppText>
                   </View>
                 )}
@@ -416,26 +378,14 @@ export function ActiveWorkoutScreen() {
                   accessibilityLabel={`Add extra set · ${section.entry.exercise.name}`}
                   variant="secondary"
                   disabled={
-                    busy ||
-                    currentSetIndex < section.entry.sets.length - 1 ||
-                    currentSet?.status !== "completed"
+                    busy || currentSetIndex < section.entry.sets.length - 1
                   }
                   onPress={() =>
                     void perform(async () => {
-                      const updated = await services.workouts.addSet(
+                      await services.workouts.addSet(
                         workout.id,
                         section.entry.id
                       )
-                      const updatedEntry = updated.entries.find(
-                        (entry) => entry.id === section.entry.id
-                      )
-                      const added = updatedEntry?.sets.at(-1)
-                      if (added)
-                        setSetSelection({
-                          workoutId: updated.id,
-                          entryId: section.entry.id,
-                          setId: added.id,
-                        })
                     })
                   }
                 />
@@ -517,7 +467,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   summary: { gap: 8, paddingBottom: 12 },
-  exerciseNavigation: { gap: 8, paddingTop: 8 },
+  exerciseProgress: { paddingTop: 8 },
   navigationActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   navigationAction: { flexGrow: 1, minWidth: 140 },
   completionCard: {
