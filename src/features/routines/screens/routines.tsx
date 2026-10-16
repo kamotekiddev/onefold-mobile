@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { AppText, Button, ErrorMessage, Screen } from "@/components/ui"
 import { Colors, MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
+import { useAuth } from "@/features/auth"
 import type { Routine, Weekday, Workout } from "@/types/domain"
 
 import {
@@ -27,6 +28,7 @@ import {
 
 export function RoutineListScreen() {
   const { state, services } = useApp()
+  const auth = useAuth()
   const p = usePalette()
   const [routines, setRoutines] = useState<Routine[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,7 +44,7 @@ export function RoutineListScreen() {
     [state.data?.exercises]
   )
   const avatarInitial =
-    state.data?.session?.email.trim().charAt(0).toUpperCase() || "U"
+    auth.state.session?.identity.email.trim().charAt(0).toUpperCase() || "U"
   const now = new Date()
   const today = now.getDay() as Weekday
   const todayName = now.toLocaleDateString(undefined, { weekday: "long" })

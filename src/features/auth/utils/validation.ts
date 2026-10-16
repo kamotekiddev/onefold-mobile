@@ -10,8 +10,8 @@ export function validateAuth(
   if (!email.trim()) errors.email = "Enter your email address."
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
     errors.email = "Enter a valid email address."
-  if (mode !== "forgot-password" && !password.trim())
-    errors.password = "Enter a password for this demo."
+  if (mode !== "forgot-password" && !password)
+    errors.password = "Enter your password."
   if (mode === "register" && password !== confirmation)
     errors.confirmation = "Passwords must match."
   return errors

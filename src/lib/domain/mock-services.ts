@@ -3,7 +3,6 @@ import type {
   AppData,
   Routine,
   RoutineEntry,
-  SessionIdentity,
   Workout,
   WorkoutEntry,
   WorkoutSet,
@@ -82,44 +81,7 @@ export function createServices(
       )
     }
   }
-  function emailCheck(email: string) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-      throw new ServiceError("VALIDATION", "Enter a valid email address.")
-  }
-  async function signIn(
-    email: string,
-    password: string
-  ): Promise<SessionIdentity> {
-    await before("auth.signIn")
-    emailCheck(email)
-    if (!password) throw new ServiceError("VALIDATION", "Enter your password.")
-    return store.mutate((data) => {
-      data.session = {
-        id: `demo-${email.trim().toLowerCase()}`,
-        email: email.trim().toLowerCase(),
-      }
-      return data.session
-    })
-  }
   const services: Services = {
-    auth: {
-      signIn,
-      register: signIn,
-      async requestPasswordReset(email) {
-        await before("auth.requestPasswordReset")
-        emailCheck(email)
-      },
-      async getSession() {
-        await before("auth.getSession")
-        return (await store.read()).session
-      },
-      async signOut() {
-        await before("auth.signOut")
-        await store.mutate((data) => {
-          data.session = null
-        })
-      },
-    },
     exercises: {
       async search(query = {}) {
         await before("exercises.search")
@@ -565,8 +527,7 @@ export function createServices(
       async reset() {
         await before("demo.reset")
         await store.mutate((data) => {
-          const session = data.session
-          Object.assign(data, makeSeed(now()), { session })
+          Object.assign(data, makeSeed(now()))
         })
       },
       failNext(operation = "*") {

@@ -55,3 +55,15 @@ Join our community of developers creating universal apps.
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
 # onefold-mobile
+
+## Authentication API
+
+The iOS and Android apps use the Onefold API for email sign-up, sign-in, and session refresh. Copy `.env.example` to `.env.local` and set `EXPO_PUBLIC_API_URL` to the API origin. This is a public address bundled into the app, not a secret. Restart Expo after changing it.
+
+- iOS Simulator on the same Mac: `http://localhost:5158`.
+- Android Emulator: `http://10.0.2.2:5158` reaches the host machine. If the build blocks cleartext HTTP, use a trusted HTTPS endpoint instead.
+- Physical iOS and Android devices: use a trusted HTTPS URL reachable from the device. Device `localhost` is the device itself.
+
+Start the backend's HTTP profile from the adjacent `onefold-services` project or point the app at another deployment. The API's OpenAPI document is at `/openapi/v1.json` in development. Native auth uses `expo-secure-store` and `expo-network`; after installing these modules, create a new development build. Expo Go includes SecureStore, but a development build is the reliable way to validate the complete native integration.
+
+Training data remains local in `onefold-accounts.db`, separated by API origin and account ID. Existing `onefold-demo.db` data is preserved separately and is not imported into real accounts. Signing out leaves that account's local training data on the device. The server has no logout endpoint, so sign-out only removes local credentials. Password reset and Google and Apple sign-in are shown as disabled coming-soon controls.

@@ -27,6 +27,10 @@ export function writeDraft(key: string, draft: SetDraft) {
 export function readDraft(key: string) {
   return drafts[key]
 }
+export function clearWorkoutDrafts() {
+  drafts = {}
+  listeners.forEach((listener) => listener())
+}
 export function useWorkoutDrafts() {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }

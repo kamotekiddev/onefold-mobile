@@ -326,16 +326,11 @@ test("rep progression respects load and cap; manual keeps current target", async
   assert.equal(suggestProgression(entry).weight, 40)
 })
 
-test("auth never persists password; signout preserves data; reset retains demo identity", async () => {
+test("reset removes only the current training data", async () => {
   const f = fixture()
-  await f.services.auth.signIn(" Demo@example.com ", "secret-never-store")
   await f.services.workouts.start("routine-full-body")
-  assert.equal(JSON.stringify(f.state()).includes("secret-never-store"), false)
-  await f.services.auth.signOut()
   assert.equal(f.state().workouts.length, 1)
-  await f.services.auth.register("again@example.com", "new-password")
   await f.services.demo.reset()
-  assert.equal(f.state().session?.email, "again@example.com")
   assert.equal(f.state().workouts.length, 0)
 })
 

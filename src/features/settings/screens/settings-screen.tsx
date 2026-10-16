@@ -12,9 +12,11 @@ import {
 } from "@/components/ui"
 import { MaxContentWidth, Radii } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
+import { useAuth } from "@/features/auth"
 
 export function SettingsScreen() {
   const { state, services } = useApp()
+  const auth = useAuth()
   const p = usePalette()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
@@ -118,17 +120,17 @@ export function SettingsScreen() {
 
         <Card style={styles.sectionCard}>
           <View style={styles.sectionCopy}>
-            <AppText variant="heading">Demo account</AppText>
-            <AppText>{data.session?.email ?? "Local demo account"}</AppText>
+            <AppText variant="heading">Account</AppText>
+            <AppText>{auth.state.session?.identity.email}</AppText>
             <AppText variant="caption" color={p.textSecondary}>
-              Demo identities on this device share the same saved training data.
+              Training data stays on this device and belongs to this account.
             </AppText>
           </View>
           <Button
             label="Sign out"
             variant="secondary"
             disabled={busy}
-            onPress={() => void run(() => services.auth.signOut())}
+            onPress={() => void run(() => auth.signOut())}
           />
         </Card>
 
@@ -148,20 +150,18 @@ export function SettingsScreen() {
               ]}
             >
               <AppText>
-                Reset all demo data? Units return to kg. You’ll stay signed in.
-                This can’t be undone.
+                Reset this account’s local training data? Units return to kg.
+                You’ll stay signed in. This can’t be undone.
               </AppText>
               <Button
-                label="Reset all demo data"
+                label="Reset local training data"
                 variant="danger"
                 loading={busy}
                 onPress={() =>
                   void run(async () => {
                     await services.demo.reset()
                     setConfirmReset(false)
-                    setMessage(
-                      "Demo data restored. Your next session is a fresh start."
-                    )
+                    setMessage("Local training data reset for this account.")
                   })
                 }
               />
@@ -174,7 +174,7 @@ export function SettingsScreen() {
             </View>
           ) : (
             <Button
-              label="Reset demo data"
+              label="Reset local training data"
               variant="danger"
               disabled={busy}
               onPress={() => setConfirmReset(true)}
@@ -217,7 +217,7 @@ export function SettingsScreen() {
           color={p.textSecondary}
           style={styles.footnote}
         >
-          Onefold · Local demo · No network synchronization
+          Onefold · Training data is stored on this device
         </AppText>
       </ScrollView>
     </SafeAreaView>
