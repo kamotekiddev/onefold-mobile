@@ -18,7 +18,12 @@ Use these rules when working in the repository.
 
 ## Branches And PRs
 
-- Do not create or switch branches unless the user asks.
+- When the user asks to implement a plan, check the current branch before making implementation edits.
+- If the checkout is on the repository's default branch, `main`, `master`, or a detached HEAD, create and switch to a descriptive `codex/<task-name>` branch automatically. The implementation request authorizes this step; do not ask for confirmation.
+- If the user has already checked out a feature branch, continue on that branch unless they explicitly request another branch.
+- Preserve all existing staged, unstaged, and untracked changes when branching. Never reset or discard changes to create a branch.
+- Follow an explicit user instruction to use a particular branch or stay on the current branch.
+- For other tasks, do not create or switch branches unless the user asks.
 - For PR summaries, include what changed, how it was verified, and any known risks.
 - Mention skipped checks and why they were skipped.
 
