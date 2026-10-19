@@ -9,12 +9,19 @@ import type {
   WeightUnit,
   Workout,
 } from "@/types/domain"
+import type { ApiRequest } from "./api-client"
 import { createServices } from "./domain/mock-services"
+export type AuthenticatedRequest = (
+  path: string,
+  options?: ApiRequest
+) => Promise<unknown>
 export interface ExerciseService {
+  create(input: Pick<Exercise, "name" | "trackingType">): Promise<Exercise>
   search(query?: ExerciseQuery): Promise<Exercise[]>
   getById(id: string): Promise<Exercise>
 }
 export interface RoutineService {
+  readonly readOnly: boolean
   list(): Promise<Routine[]>
   getById(id: string): Promise<Routine>
   create(input: RoutineInput): Promise<Routine>
@@ -58,5 +65,9 @@ export interface Services {
 export interface DataStore {
   read(): Promise<AppData>
   mutate<T>(fn: (data: AppData) => T): Promise<T>
+}
+export interface ServiceOptions {
+  request?: AuthenticatedRequest
+  now?: () => number
 }
 export { createServices }

@@ -1,4 +1,6 @@
-import type { DataStore, Services } from "../services"
+import type { AuthenticatedRequest, DataStore, Services } from "../services"
+import { createTemplateCreator } from "./create-template"
+import { createExercise } from "./create-exercise"
 import type {
   AppData,
   Routine,
@@ -8,9 +10,11 @@ import type {
   WorkoutSet,
 } from "../../types/domain"
 import { makeSeed } from "./seed"
+import { createRemoteRoutineLoader } from "./routine-templates"
 import { suggestProgression } from "./progression"
 import {
   isNonnegative,
+  isBackendId,
   isPositiveInteger,
   ServiceError,
   validateRoutine,
@@ -64,10 +68,20 @@ const plannedSet = (
 
 export function createServices(
   store: DataStore,
-  options: { delayMs?: number; now?: () => number } = {}
+  options: {
+    delayMs?: number
+    now?: () => number
+    request?: AuthenticatedRequest
+  } = {}
 ): Services {
   const now = options.now ?? Date.now
   let failOperation: string | null = null
+  const remoteRoutines = options.request
+    ? createRemoteRoutineLoader(store, options.request, now)
+    : null
+  const createRemoteTemplate = options.request
+    ? createTemplateCreator(store, options.request, now)
+    : null
   async function before(operation: string) {
     if ((options.delayMs ?? 180) > 0)
       await new Promise((resolve) =>
@@ -83,10 +97,25 @@ export function createServices(
   }
   const services: Services = {
     exercises: {
+      async create(input) {
+        if (options.request)
+          return createExercise(store, options.request, input)
+        return store.mutate((data) => {
+          const exercise = {
+            ...input,
+            id: newId("exercise"),
+            primaryMuscleGroup: "General",
+            equipment: "Unknown",
+          }
+          data.exercises.push(exercise)
+          return exercise
+        })
+      },
       async search(query = {}) {
         await before("exercises.search")
         return (await store.read()).exercises.filter(
           (exercise) =>
+            (!options.request || isBackendId(exercise.id)) &&
             (!query.search ||
               exercise.name
                 .toLowerCase()
@@ -105,11 +134,14 @@ export function createServices(
       },
     },
     routines: {
+      readOnly: !!options.request,
       async list() {
+        if (remoteRoutines) return remoteRoutines.list()
         await before("routines.list")
         return (await store.read()).routines
       },
       async getById(id) {
+        if (remoteRoutines) return remoteRoutines.getById(id)
         await before("routines.getById")
         return required(
           (await store.read()).routines.find((routine) => routine.id === id),
@@ -117,6 +149,7 @@ export function createServices(
         )
       },
       async create(input) {
+        if (createRemoteTemplate) return createRemoteTemplate(input)
         await before("routines.create")
         return store.mutate((data) => {
           validateRoutine(input, data.exercises)
@@ -137,6 +170,11 @@ export function createServices(
         })
       },
       async update(id, input, updateOptions) {
+        if (remoteRoutines)
+          throw new ServiceError(
+            "UNSUPPORTED",
+            "Editing routines is not available yet."
+          )
         await before("routines.update")
         return store.mutate((data) => {
           validateRoutine(input, data.exercises)
@@ -180,6 +218,11 @@ export function createServices(
         })
       },
       async duplicate(id) {
+        if (remoteRoutines)
+          throw new ServiceError(
+            "UNSUPPORTED",
+            "Duplicating routines is not available yet."
+          )
         await before("routines.duplicate")
         return store.mutate((data) => {
           const original = required(
@@ -204,6 +247,11 @@ export function createServices(
         })
       },
       async delete(id) {
+        if (remoteRoutines)
+          throw new ServiceError(
+            "UNSUPPORTED",
+            "Deleting routines is not available yet."
+          )
         await before("routines.delete")
         await store.mutate((data) => {
           required(
@@ -527,7 +575,10 @@ export function createServices(
       async reset() {
         await before("demo.reset")
         await store.mutate((data) => {
-          Object.assign(data, makeSeed(now()))
+          Object.assign(
+            data,
+            makeSeed(now(), { includeDefaultRoutine: !options.request })
+          )
         })
       },
       failNext(operation = "*") {

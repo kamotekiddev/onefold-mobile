@@ -2,24 +2,25 @@
 updated: 2026-10-19
 tags: [onefold, architecture]
 ---
+
 # Architecture
 
 ## Stack and ownership
 
 As declared in [package.json](../../package.json): Expo `~57.0.27`, React `19.2.3`, React Native `0.86.3`, Expo Router `~57.0.25`, and TypeScript `~6.0.3`. Re-read the manifest before API work.
 
-| Location | Responsibility |
-| --- | --- |
-| `src/app/` | Router screens, route groups, layouts, and access gates. |
-| `src/features/auth/` | Auth UI, validation, provider, and session manager. |
-| `src/features/routines/` | Routine list, editor, configuration, draft state, and reordering. |
-| `src/features/exercises/` | Exercise picker. |
-| `src/features/workouts/` | Start, active, detail screens, set controls, rest UI, and workout helpers. |
-| `src/features/history/` | History screen. |
-| `src/features/settings/` | Units, account, local reset, and development failure simulation. |
-| `src/lib/` | Shared API client, app provider, storage, and training domain services. |
-| `src/types/domain.ts` | Shared training model and storage snapshot types. |
-| `src/components/ui/`, `src/constants/theme.ts` | Shared UI and theme tokens. |
+| Location                                       | Responsibility                                                             |
+| ---------------------------------------------- | -------------------------------------------------------------------------- |
+| `src/app/`                                     | Router screens, route groups, layouts, and access gates.                   |
+| `src/features/auth/`                           | Auth UI, validation, provider, and session manager.                        |
+| `src/features/routines/`                       | Routine list, editor, configuration, draft state, and reordering.          |
+| `src/features/exercises/`                      | Exercise picker.                                                           |
+| `src/features/workouts/`                       | Start, active, detail screens, set controls, rest UI, and workout helpers. |
+| `src/features/history/`                        | History screen.                                                            |
+| `src/features/settings/`                       | Units, account, local reset, and development failure simulation.           |
+| `src/lib/`                                     | Shared API client, app provider, storage, and training domain services.    |
+| `src/types/domain.ts`                          | Shared training model and storage snapshot types.                          |
+| `src/components/ui/`, `src/constants/theme.ts` | Shared UI and theme tokens.                                                |
 
 Routes use `(auth)` and `(app)` groups. The app tabs are Routines, History, and Settings; routine editing and workout screens live outside the tab group. See [root layout](../../src/app/_layout.tsx) and [tabs layout](../../src/app/%28app%29/%28tabs%29/_layout.tsx).
 
@@ -31,11 +32,11 @@ The root mounts `AuthProvider`. An account boundary mounts `AppProvider` keyed b
 
 [Session manager](../../src/features/auth/services/session.ts) calls:
 
-| Endpoint | Request | Expected success |
-| --- | --- | --- |
+| Endpoint                 | Request            | Expected success    |
+| ------------------------ | ------------------ | ------------------- |
 | `POST /api/Auth/sign-up` | Email and password | 201 with token pair |
 | `POST /api/Auth/sign-in` | Email and password | 200 with token pair |
-| `POST /api/Auth/refresh` | Refresh token | 200 with token pair |
+| `POST /api/Auth/refresh` | Refresh token      | 200 with token pair |
 
 The client validates token shape and reads identity/expiry claims; decoding claims is not server-side signature verification. Native sessions are saved in SecureStore with a version and API environment. Credentials must be persisted before sign-in is reported as successful.
 
@@ -45,7 +46,11 @@ Sign-out removes local credentials; it is not remote token revocation. The READM
 
 ## Account-local persistence
 
-[Native account store](../../src/lib/storage/app-store.ts) opens `onefold-accounts.db` and stores JSON in `account_state(account_key, value)`. The key combines normalized API base URL and account ID. The current `AppData` schema version is 2.
+[Native account store](../../src/lib/storage/app-store.ts) opens `onefold-accounts.db` and stores JSON in `account_state(account_key, value)`. The key combines normalized API base URL and account ID. The current `AppData` schema version is 3.
+
+Routines and their exercise catalog are fetched from the authenticated workout-template API and stored as a derived account-local cache with a 24-hour TTL. The first production hydration does not create a default routine from the local seed. Expired cache refreshes replace the cached routines atomically; a failed refresh keeps the last successful cache available for offline workout use. Template fields that are not present in the current API are normalized with documented mobile defaults.
+
+Routine creation uses authenticated `POST /api/workout/Template`, loads the saved definition with server IDs, and expires the list cache immediately. The exercise picker offers `POST /api/workout/Exercise` because the API has no exercise-list endpoint. Cache refresh retains known server exercises and their known tracking types; fresh accounts and resets have no seeded catalog. Editing, deletion, and duplication of remote routines remain blocked. See [[Decisions#D010 — Allow backend routine creation independently of other mutations]].
 
 Writes are serialized; the store clones data and persists before publishing the updated snapshot. Unsupported stored shapes surface an error instead of being overwritten. Account disposal blocks old stores from publishing; provider cleanup clears workout drafts.
 

@@ -34,7 +34,10 @@ export const exercises: Exercise[] = catalog.map(
     trackingType,
   })
 )
-export function makeSeed(now = Date.now()): AppData {
+export function makeSeed(
+  now = Date.now(),
+  options: { includeDefaultRoutine?: boolean } = {}
+): AppData {
   const entry = (
     id: string,
     exerciseId: string,
@@ -54,22 +57,26 @@ export function makeSeed(now = Date.now()): AppData {
     prescriptionRevision: 1,
   })
   return {
-    schemaVersion: 2,
-    exercises,
-    routines: [
-      {
-        id: "routine-full-body",
-        name: "Full body foundations",
-        entries: [
-          entry("entry-squat", "exercise-1", 0, 40),
-          entry("entry-bench", "exercise-2", 1, 30),
-          entry("entry-row", "exercise-5", 2, 30),
-        ],
-        scheduledDays: [],
-        createdAt: now,
-        updatedAt: now,
-      },
-    ],
+    schemaVersion: 3,
+    exercises: options.includeDefaultRoutine === false ? [] : exercises,
+    routines:
+      options.includeDefaultRoutine === false
+        ? []
+        : [
+            {
+              id: "routine-full-body",
+              name: "Full body foundations",
+              entries: [
+                entry("entry-squat", "exercise-1", 0, 40),
+                entry("entry-bench", "exercise-2", 1, 30),
+                entry("entry-row", "exercise-5", 2, 30),
+              ],
+              scheduledDays: [],
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+    routineCache: null,
     workouts: [],
     futureTargets: [],
     preferences: { weightUnit: "kg" },
