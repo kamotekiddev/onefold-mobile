@@ -14,8 +14,10 @@ The user requested an Obsidian project memory so future assistant sessions can r
 
 - Expo SDK 57 application with feature-based TypeScript modules.
 - Native API authentication with secure session persistence and account-scoped local training data.
+- Offline-local auth state now shows a dismissible floating retry notice above the bottom navigation; dismissal lasts for the current offline episode and retry behavior is unchanged.
 - Routine scheduling, exercise selection/reordering, guided workouts, full-screen rest, completion summaries, history, and unit preferences.
 - Existing runtime service names still include “mock” and “demo”; these do not imply that native authentication is mocked.
+- Obsidian vault settings in `.obsidian/` are now tracked with the repository.
 
 See [[Project Overview]], [[Architecture]], and [[Decisions]].
 
@@ -48,9 +50,12 @@ These are observed gaps or questions, not an approved backlog:
 
 - `npx expo lint`: passed.
 - `npx tsc --noEmit`: passed.
+- `npm test`: passed, 37 tests.
+- `git diff --check`: passed.
 - Wiki links and local source links: validated across all six context notes.
 - Unit suite and device flows: not run for this documentation-only task.
 - No application code, dependency, or native configuration changes were needed.
+- `.obsidian/` settings were committed in `d5ed074` and pushed on `codex/commit-obsidian-settings`; PR #12 is open against `main`.
 
 ## Next-session handoff
 
