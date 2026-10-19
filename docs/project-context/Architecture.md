@@ -72,3 +72,13 @@ The [web storage adapter](../../src/lib/storage/app-store.web.ts) is intentional
 Evidence: [services](../../src/lib/domain/mock-services.ts), [progression](../../src/lib/domain/progression.ts), [exercise flow](../../src/features/workouts/utils/exercise-flow.ts), and [display helpers](../../src/features/workouts/utils/display.ts).
 
 Related: [[Decisions]], [[Development Guide]].
+
+## Temporary storage debugging
+
+On 2026-10-19, the user requested temporarily removing the catch that hides training-storage load rejections from debugging tools. [AppProvider](../../src/lib/app-provider.tsx) and the [root layout's storage retry](../../src/app/_layout.tsx) now invoke `hydrate()` without catching its rejected promise. The store still publishes its error state and rethrows the original error; snapshot validation and data preservation remain in place. An iOS simulator screenshot confirmed the unhandled rejection overlay points to `parseStored`.
+
+Read-only inspection later established a version mismatch: the saved snapshot uses schema 3 from the backend-routines work, while the earlier retry-screen branch accepted only schema 2. The required collection types and weight-unit validation passed. Syncing the merged backend-routines code from `origin/main` at `7465038` restores the existing schema-2/3 reader and avoids resetting or downgrading saved data. The temporary rejection suppression removal remains in place pending the end of debugging.
+
+## Startup recovery presentation
+
+[AppRecoveryScreen](../../src/components/app-recovery-screen.tsx) supplies a shared app-level recovery layout for training-store errors, session-storage errors, and unavailable authentication. It uses the existing palette, typography, Card, ErrorMessage, system symbols, and rounded 48-point Pressable controls. A compact Onefold heading sits above a centered, width-limited card; error details remain visible. The layout scrolls and includes all safe-area edges. The [root layout](../../src/app/_layout.tsx) still owns retry and session-clearing behavior; this presentation change adds no reset or migration. Light/dark rendering and large-text behavior still need visual verification; the diagnostic overlay obscured the simulator and GUI control lacked Accessibility permission.

@@ -7,7 +7,8 @@ import { useColorScheme } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 
-import { Button, ErrorMessage, LoadingState, Screen } from "@/components/ui"
+import { AppRecoveryScreen } from "@/components/app-recovery-screen"
+import { LoadingState, Screen } from "@/components/ui"
 import { usePalette } from "@/constants/theme"
 import { AuthProvider, useAuth } from "@/features/auth"
 import { AppProvider, useMaybeApp } from "@/lib/app-provider"
@@ -26,56 +27,60 @@ function Navigation() {
   if (
     auth.state.status === "loading" ||
     (hasSession && app?.state.status !== "ready")
-  )
+  ) {
+    if (app?.state.status === "error")
+      return (
+        <AppRecoveryScreen
+          title="Unable to load your training"
+          description="There was a problem opening your saved data. Try loading it again to continue."
+          message={app.state.error ?? "Unable to load saved data."}
+          onRetry={() => void app.store.hydrate()}
+        />
+      )
     return (
-      <Screen title="Onefold">
-        {app?.state.status === "error" ? (
-          <>
-            <ErrorMessage
-              message={app.state.error ?? "Unable to load saved data."}
-            />
-            <Button
-              label="Retry loading"
-              onPress={() => void app.store.hydrate().catch(() => undefined)}
-            />
-          </>
-        ) : (
-          <LoadingState label="Loading your training space…" />
-        )}
+      <Screen
+        title="Onefold"
+        safeAreaEdges={["top", "left", "right", "bottom"]}
+      >
+        <LoadingState label="Loading your training space…" />
       </Screen>
     )
+  }
   if (
     auth.state.status === "storage-error" ||
     auth.state.status === "unsupported"
   )
     return (
-      <Screen title="Onefold">
-        <ErrorMessage
-          message={auth.state.error ?? "Authentication is unavailable."}
-        />
-        {recoveryError ? <ErrorMessage message={recoveryError} /> : null}
-        {auth.state.status === "storage-error" ? (
-          <>
-            <Button label="Retry loading" onPress={() => void auth.restore()} />
-            <Button
-              label="Clear saved session"
-              variant="secondary"
-              onPress={() => {
-                setRecoveryError("")
-                void auth
-                  .signOut()
-                  .catch((error: unknown) =>
-                    setRecoveryError(
-                      error instanceof Error
-                        ? error.message
-                        : "Could not clear the saved session."
+      <AppRecoveryScreen
+        title="Unable to open Onefold"
+        description="We couldn’t open your session. Review the details below to continue."
+        message={auth.state.error ?? "Authentication is unavailable."}
+        recoveryError={recoveryError}
+        onRetry={
+          auth.state.status === "storage-error"
+            ? () => void auth.restore()
+            : undefined
+        }
+        secondaryAction={
+          auth.state.status === "storage-error"
+            ? {
+                label: "Clear saved session",
+                onPress: () => {
+                  setRecoveryError("")
+                  void auth
+                    .signOut()
+                    .catch((error: unknown) =>
+                      setRecoveryError(
+                        error instanceof Error
+                          ? error.message
+                          : "Could not clear the saved session."
+                      )
                     )
-                  )
-              }}
-            />
-          </>
-        ) : null}
-      </Screen>
+                },
+              }
+            : undefined
+        }
+      />
     )
   return (
     <ThemeProvider

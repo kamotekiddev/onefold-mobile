@@ -65,3 +65,25 @@ These are observed gaps or questions, not an approved backlog:
 ## Next-session handoff
 
 Read [[Start Here]] and check current changes before starting new work. Update this note after meaningful work with changed areas, evidence, validation, and concrete unfinished items. Preserve older decisions with their status rather than treating every implementation detail as a permanent choice.
+
+## Temporary storage debugging — 2026-10-19
+
+- On `codex/debug-storage-load-errors`, based on refreshed `origin/main` at `4aed419`, removed the promise rejection suppression from initial training-store hydration and the storage error screen's Retry loading action at the user's request. See [[Architecture#Temporary storage debugging]]. Existing unrelated changes were preserved.
+- The reported screen matches `parseStored` rejecting the local account snapshot. Which validation condition fails is still unknown; backend seeding has not been established as the cause.
+- `npx expo lint`, `npx tsc --noEmit`, and `git diff --check`: passed. No tests added for this temporary two-call-site change; simulator overlay behavior remains unverified.
+- Next: reload or retry in development to capture the rejection stack; inspect the invalid format, fix the underlying compatibility issue, and restore deliberate rejection handling after debugging. No local data was reset or migrated.
+
+## Retry screen design — 2026-10-19
+
+- On `codex/retry-screen-design`, created from refreshed `origin/main` at `4aed419` with all existing work preserved, updated startup recovery screens to match the existing design system. See [[Architecture#Startup recovery presentation]].
+- Added `src/components/app-recovery-screen.tsx`; the root layout now uses it for training-data and session-loading errors. Presentation includes a compact brand heading, centered bordered card, accent-soft warning symbol, original error details, and full-width retry/secondary actions with 48-point minimum touch targets. Top safe-area spacing also applies to initial loading.
+- Retry/session behavior is preserved, including the user's earlier temporary removal of training-load promise catches. The iOS simulator now confirms the unhandled error overlay references `parseStored`. No saved data was reset or migrated.
+- `npx expo lint`, `npx tsc --noEmit`, and `git diff --check`: passed. No new tests for this presentation-only change. Full visual QA remains unfinished: the simulator screenshot was obscured by the debugging overlay; dismissing it through computer use required missing Accessibility permission. Review the recovery layout after dismissing the overlay, including dark mode and large text.
+- The user requested no further Superdesign usage; implementation uses the local components and tokens directly. Continue without external design generation.
+- Delivery verification: `npx expo lint`, `npx tsc --noEmit`, and `npm test` passed (37 tests). The PR includes the recovery presentation and the previously requested temporary debugging change; unrelated branch-policy and Obsidian workspace edits are excluded.
+
+## Storage version mismatch diagnosis — 2026-10-19
+
+- Continuing the same storage-recovery work on `codex/retry-screen-design` / PR #15. A read-only structural check confirmed the simulator snapshot uses schema 3; required arrays and unit preference pass validation. The branch's older schema-2-only reader caused the reported exception, rather than exercise seeding.
+- PR #14 has merged into `main` at `7465038`. Merging that code into the open retry-screen branch restores its schema-2/3 reader and backend-routine integration while retaining the redesigned recovery screen and requested debugging behavior. The only merge conflict was in decision notes; both sets of decisions were retained.
+- No reset, database mutation, or schema downgrade was performed during diagnosis. No snapshot contents or account identifiers were copied to project notes.

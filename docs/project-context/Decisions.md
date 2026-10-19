@@ -116,3 +116,13 @@ The current API provides exercise creation and lookup by ID but no exercise list
 **Contract limits:** Remote creation uses one target rep count, no starting load, and manual or weight progression. Template-level rest defaults to two minutes. The detail DTO still omits per-exercise rest, weight increments, and exercise type; reads keep their documented defaults, while locally known exercise types are retained. Editing, deletion, and duplication remain unavailable.
 
 **Evidence:** The live OpenAPI document was read successfully outside the sandbox; response DTOs and validation were checked in the adjacent backend source. [Creation adapter](../../src/lib/domain/create-template.ts), [exercise adapter](../../src/lib/domain/create-exercise.ts), and [regression tests](../../src/lib/domain/remote-creation.test.ts).
+
+## D012 — Share the app startup recovery layout
+
+**Status:** Implemented locally on 2026-10-19 following the user's request to match the retry screen to the existing design system; visual review remains pending.
+
+Use one app-level recovery component for training-data and session-loading errors, with existing theme tokens, shared text/card/error primitives, system symbols, and full-width rounded actions. Keep the original error visible and leave storage/retry behavior in its existing owner.
+
+**Rationale:** Startup errors occur before feature navigation mounts; a shared safe-area-aware presentation makes these states consistent with the rest of the app without changing data recovery policy.
+
+**Source:** [Recovery component](../../src/components/app-recovery-screen.tsx), [root layout](../../src/app/_layout.tsx).
