@@ -21,7 +21,8 @@ import { confirmAction, progressionText, toKg, weightText } from "../utils"
 
 export function ExerciseConfigurationScreen() {
   const { entryId } = useLocalSearchParams<{ entryId: string }>()
-  const { state } = useApp()
+  const { state, services } = useApp()
+  const remote = services.routines.readOnly
   const p = usePalette()
   const { draft, setDraft } = useRoutineDraft()
   const entry = draft?.value.entries.find((item) => item.id === entryId)
@@ -86,11 +87,16 @@ export function ExerciseConfigurationScreen() {
           },
         ]
       : []),
-    {
-      mode: "reps",
-      title: "Increase reps",
-      description: "Build repetitions while keeping the movement familiar.",
-    },
+    ...(!remote
+      ? [
+          {
+            mode: "reps",
+            title: "Increase reps",
+            description:
+              "Build repetitions while keeping the movement familiar.",
+          } as const,
+        ]
+      : []),
   ]
   const update = (key: keyof typeof form) => (value: string) =>
     setForm((current) => ({ ...current, [key]: value }))
@@ -108,11 +114,11 @@ export function ExerciseConfigurationScreen() {
     ...entry,
     setCount: Number(form.setCount),
     repMin: Number(form.repMin),
-    repMax: Number(form.repMax),
+    repMax: Number(remote ? form.repMin : form.repMax),
     restSeconds: Number(form.restSeconds),
     progressionMode: form.progressionMode,
     startingWeight:
-      weighted && form.startingWeight.trim()
+      !remote && weighted && form.startingWeight.trim()
         ? form.startingWeight === initial.startingWeight &&
           entry.startingWeight !== undefined
           ? entry.startingWeight
@@ -137,15 +143,18 @@ export function ExerciseConfigurationScreen() {
         Number(form[key]) <= 0
       )
         next[key] = "Enter a positive whole number."
-    if (candidate.repMin > candidate.repMax)
+    if (!remote && candidate.repMin > candidate.repMax)
       next.repMax = "Maximum reps must be at least the minimum."
     if (
       !form.restSeconds.trim() ||
       !Number.isFinite(candidate.restSeconds) ||
-      candidate.restSeconds < 0
+      candidate.restSeconds < (remote ? 1 : 0)
     )
-      next.restSeconds = "Enter zero or a positive number of seconds."
+      next.restSeconds = remote
+        ? "Enter at least one second of rest."
+        : "Enter zero or a positive number of seconds."
     if (
+      !remote &&
       weighted &&
       form.startingWeight.trim() &&
       (!Number.isFinite(candidate.startingWeight) ||
@@ -250,14 +259,16 @@ export function ExerciseConfigurationScreen() {
                   {numeric("restSeconds", "Rest between sets", "seconds")}
                 </View>
                 <View style={styles.fieldCell}>
-                  {numeric("repMin", "Minimum reps")}
+                  {numeric("repMin", remote ? "Target reps" : "Minimum reps")}
                 </View>
-                <View style={styles.fieldCell}>
-                  {numeric("repMax", "Maximum reps")}
-                </View>
+                {!remote ? (
+                  <View style={styles.fieldCell}>
+                    {numeric("repMax", "Maximum reps")}
+                  </View>
+                ) : null}
               </View>
 
-              {weighted ? (
+              {weighted && !remote ? (
                 <View>
                   {numeric(
                     "startingWeight",

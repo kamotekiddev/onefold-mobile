@@ -12,7 +12,7 @@ function parseStored(raw: string): AppData {
     !value ||
     typeof value !== "object" ||
     !("schemaVersion" in value) ||
-    value.schemaVersion !== 2 ||
+    ![2, 3].includes(Number(value.schemaVersion)) ||
     !("routines" in value) ||
     !Array.isArray(value.routines) ||
     !("workouts" in value) ||
@@ -31,6 +31,12 @@ function parseStored(raw: string): AppData {
       "Saved data has an unsupported format. It was not overwritten."
     )
   const data = value as AppData
+  if (Number((value as { schemaVersion?: unknown }).schemaVersion) === 2) {
+    data.schemaVersion = 3
+    data.routineCache = null
+  }
+  if (!data.routineCache || typeof data.routineCache !== "object")
+    data.routineCache = null
   data.routines = data.routines.map((routine) => ({
     ...routine,
     scheduledDays: Array.isArray(routine.scheduledDays)
@@ -78,7 +84,9 @@ export function createAccountStore(accountKey: string) {
           accountKey
         )
         ensureActive()
-        const data = row ? parseStored(row.value) : makeSeed()
+        const data = row
+          ? parseStored(row.value)
+          : makeSeed(Date.now(), { includeDefaultRoutine: false })
         if (!row)
           await database.runAsync(
             "INSERT OR IGNORE INTO account_state (account_key, value) VALUES (?, ?)",

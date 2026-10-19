@@ -10,6 +10,8 @@ export class ServiceError extends Error {
 }
 export const isPositiveInteger = (value: number) =>
   Number.isInteger(value) && value > 0
+export const isBackendId = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 export const isNonnegative = (value: number) =>
   Number.isFinite(value) && value >= 0
 export function validateRoutine(input: RoutineInput, catalog: Exercise[]) {

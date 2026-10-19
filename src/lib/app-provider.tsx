@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react"
 
-import { createServices } from "@/lib/services"
+import { createServices, type AuthenticatedRequest } from "@/lib/services"
 import { createAccountStore } from "@/lib/storage/app-store"
 import { clearWorkoutDrafts } from "@/features/workouts/hooks/use-drafts"
 import type { StoreSnapshot } from "@/types/domain"
@@ -23,12 +23,14 @@ const AppContext = createContext<{
 export function AppProvider({
   children,
   accountKey,
+  request,
 }: {
   children: ReactNode
   accountKey: string
+  request: AuthenticatedRequest
 }) {
   const [store] = useState(() => createAccountStore(accountKey))
-  const [services] = useState(() => createServices(store))
+  const [services] = useState(() => createServices(store, { request }))
   const state = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,

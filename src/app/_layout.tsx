@@ -109,10 +109,10 @@ function Navigation() {
   )
 }
 function AccountBoundary() {
-  const { accountKey } = useAuth()
+  const { accountKey, request } = useAuth()
   if (!accountKey) return <Navigation />
   return (
-    <AppProvider key={accountKey} accountKey={accountKey}>
+    <AppProvider key={accountKey} accountKey={accountKey} request={request}>
       <Navigation />
     </AppProvider>
   )

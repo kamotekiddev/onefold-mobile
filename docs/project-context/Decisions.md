@@ -2,6 +2,7 @@
 updated: 2026-10-19
 tags: [onefold, decisions]
 ---
+
 # Decisions
 
 Initial record assembled on 2026-10-19. Entries below distinguish repository policy from observed implementation. Original decision dates and motivations are not assumed.
@@ -91,6 +92,30 @@ Show the `offline-local` retry action as a non-blocking floating notice above th
 **Rationale:** Keep local training content available without permanently consuming layout space beneath the tab bar.
 
 **Source:** [App layout](../../src/app/%28app%29/_layout.tsx).
+
+## D009 — Backend templates are the routine source of truth
+
+**Status:** Implemented on 2026-10-19.
+
+Fetch authenticated workout templates from `GET /api/workout/Template` and `GET /api/workout/Template/{id}`. Normalize them into the existing local routine/workout model and cache the result per account for 24 hours. Production account hydration no longer creates the local default routine.
+
+**Consequence:** Local workouts, history, progression, and preferences remain durable device-local data, while routine reads come from the backend or the last successful cache. The original blanket restriction on routine creation is superseded by D010 below. Editing, deletion, and duplication remain unavailable in the mobile integration.
+
+**Temporary defaults:** Single target reps become both minimum and maximum reps; absent starting weight is omitted; weight increments in pounds are converted to kilograms; weight progression is selected when an increment exists, otherwise manual progression is used; missing exercise type defaults to weighted.
+
+**Source:** [routine template loader](../../src/lib/domain/routine-templates.ts), [account store](../../src/lib/storage/app-store.ts), and adjacent backend `TemplateController`/template DTOs.
+
+## D010 — Allow backend routine creation independently of other mutations
+
+**Status:** Implemented on 2026-10-19 after the user reported the missing creation action. Supersedes D009's blanket restriction on creation.
+
+Show New Routine on the list and Create routine in the empty state. Save with authenticated `POST /api/workout/Template`, retrieve the saved template's server IDs, and expire the collection cache immediately. A retry after a successful POST and failed detail fetch reuses the saved template ID within the account session.
+
+The current API provides exercise creation and lookup by ID but no exercise listing. The picker therefore offers Add new exercise using `POST /api/workout/Exercise` and retains known server exercises locally, including unused exercises created while drafting. Fresh accounts and account resets use no seeded exercises or routines. The remote picker excludes legacy seed IDs.
+
+**Contract limits:** Remote creation uses one target rep count, no starting load, and manual or weight progression. Template-level rest defaults to two minutes. The detail DTO still omits per-exercise rest, weight increments, and exercise type; reads keep their documented defaults, while locally known exercise types are retained. Editing, deletion, and duplication remain unavailable.
+
+**Evidence:** The live OpenAPI document was read successfully outside the sandbox; response DTOs and validation were checked in the adjacent backend source. [Creation adapter](../../src/lib/domain/create-template.ts), [exercise adapter](../../src/lib/domain/create-exercise.ts), and [regression tests](../../src/lib/domain/remote-creation.test.ts).
 
 ## D012 — Share the app startup recovery layout
 
