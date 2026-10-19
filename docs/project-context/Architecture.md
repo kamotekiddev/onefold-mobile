@@ -67,3 +67,11 @@ The [web storage adapter](../../src/lib/storage/app-store.web.ts) is intentional
 Evidence: [services](../../src/lib/domain/mock-services.ts), [progression](../../src/lib/domain/progression.ts), [exercise flow](../../src/features/workouts/utils/exercise-flow.ts), and [display helpers](../../src/features/workouts/utils/display.ts).
 
 Related: [[Decisions]], [[Development Guide]].
+
+## Temporary storage debugging
+
+On 2026-10-19, the user requested temporarily removing the catch that hides training-storage load rejections from debugging tools. [AppProvider](../../src/lib/app-provider.tsx) and the [root layout's storage retry](../../src/app/_layout.tsx) now invoke `hydrate()` without catching its rejected promise. The store still publishes its error state and rethrows the original error; snapshot validation and data preservation remain in place. An iOS simulator screenshot subsequently confirmed the unhandled rejection overlay points to `parseStored`; the specific invalid field remains unknown. This is a temporary diagnostic change, pending a fix for the unsupported saved format.
+
+## Startup recovery presentation
+
+[AppRecoveryScreen](../../src/components/app-recovery-screen.tsx) supplies a shared app-level recovery layout for training-store errors, session-storage errors, and unavailable authentication. It uses the existing palette, typography, Card, ErrorMessage, system symbols, and rounded 48-point Pressable controls. A compact Onefold heading sits above a centered, width-limited card; error details remain visible. The layout scrolls and includes all safe-area edges. The [root layout](../../src/app/_layout.tsx) still owns retry and session-clearing behavior; this presentation change adds no reset or migration. Light/dark rendering and large-text behavior still need visual verification; the diagnostic overlay obscured the simulator and GUI control lacked Accessibility permission.

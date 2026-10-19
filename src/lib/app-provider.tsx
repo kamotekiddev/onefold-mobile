@@ -36,7 +36,8 @@ export function AppProvider({
   )
   useEffect(() => {
     store.activate()
-    void store.hydrate().catch(() => undefined)
+    // Temporarily expose load failures to the development error overlay.
+    void store.hydrate()
     return () => {
       store.dispose()
       clearWorkoutDrafts()
