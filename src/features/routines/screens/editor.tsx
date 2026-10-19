@@ -88,6 +88,16 @@ export function RoutineEditorScreen() {
       }
     )
   })
+  if (services.routines.readOnly)
+    return (
+      <Screen
+        title="Routine editor"
+        safeAreaEdges={["top", "left", "right", "bottom"]}
+      >
+        <ErrorMessage message="Routines are managed by your account server." />
+        <Button label="Back to routines" onPress={() => router.replace("/")} />
+      </Screen>
+    )
   const save = async (confirmTargetReset = false) => {
     if (!draft || saving.current) return
     const nextErrors: Record<string, string> = {}

@@ -1,4 +1,4 @@
-import type { DataStore, Services } from "../services"
+import type { AuthenticatedRequest, DataStore, Services } from "../services"
 import type {
   AppData,
   Routine,
@@ -8,6 +8,7 @@ import type {
   WorkoutSet,
 } from "../../types/domain"
 import { makeSeed } from "./seed"
+import { createRemoteRoutineLoader } from "./routine-templates"
 import { suggestProgression } from "./progression"
 import {
   isNonnegative,
@@ -64,10 +65,17 @@ const plannedSet = (
 
 export function createServices(
   store: DataStore,
-  options: { delayMs?: number; now?: () => number } = {}
+  options: {
+    delayMs?: number
+    now?: () => number
+    request?: AuthenticatedRequest
+  } = {}
 ): Services {
   const now = options.now ?? Date.now
   let failOperation: string | null = null
+  const remoteRoutines = options.request
+    ? createRemoteRoutineLoader(store, options.request, now)
+    : null
   async function before(operation: string) {
     if ((options.delayMs ?? 180) > 0)
       await new Promise((resolve) =>
@@ -105,11 +113,14 @@ export function createServices(
       },
     },
     routines: {
+      readOnly: !!options.request,
       async list() {
+        if (remoteRoutines) return remoteRoutines.list()
         await before("routines.list")
         return (await store.read()).routines
       },
       async getById(id) {
+        if (remoteRoutines) return remoteRoutines.getById(id)
         await before("routines.getById")
         return required(
           (await store.read()).routines.find((routine) => routine.id === id),

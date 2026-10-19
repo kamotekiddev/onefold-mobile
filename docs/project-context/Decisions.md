@@ -2,6 +2,7 @@
 updated: 2026-10-19
 tags: [onefold, decisions]
 ---
+
 # Decisions
 
 Initial record assembled on 2026-10-19. Entries below distinguish repository policy from observed implementation. Original decision dates and motivations are not assumed.
@@ -91,3 +92,15 @@ Show the `offline-local` retry action as a non-blocking floating notice above th
 **Rationale:** Keep local training content available without permanently consuming layout space beneath the tab bar.
 
 **Source:** [App layout](../../src/app/%28app%29/_layout.tsx).
+
+## D009 — Backend templates are the routine source of truth
+
+**Status:** Implemented on 2026-10-19.
+
+Fetch authenticated workout templates from `GET /api/workout/Template` and `GET /api/workout/Template/{id}`. Normalize them into the existing local routine/workout model and cache the result per account for 24 hours. Production account hydration no longer creates the local default routine.
+
+**Consequence:** Local workouts, history, progression, and preferences remain durable device-local data, while routine reads come from the backend or the last successful cache. Local routine mutation controls are hidden until the backend CRUD contract is complete; the current API does not expose delete or duplicate operations and does not provide enough exercise metadata for a lossless mobile mapping.
+
+**Temporary defaults:** Single target reps become both minimum and maximum reps; absent starting weight is omitted; weight increments in pounds are converted to kilograms; weight progression is selected when an increment exists, otherwise manual progression is used; missing exercise type defaults to weighted.
+
+**Source:** [routine template loader](../../src/lib/domain/routine-templates.ts), [account store](../../src/lib/storage/app-store.ts), and adjacent backend `TemplateController`/template DTOs.

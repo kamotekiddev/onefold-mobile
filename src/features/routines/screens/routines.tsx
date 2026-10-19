@@ -188,29 +188,31 @@ export function RoutineListScreen() {
           >
             A little structure. A stronger you.
           </AppText>
-          <Pressable
-            accessibilityLabel="New Routine"
-            accessibilityRole="button"
-            onPress={() => router.push("/routines/edit")}
-            style={styles.newRoutineHitArea}
-          >
-            {({ pressed }) => (
-              <View
-                style={[
-                  styles.newRoutineButton,
-                  { backgroundColor: p.accent, opacity: pressed ? 0.8 : 1 },
-                ]}
-              >
-                <AppText
-                  variant="caption"
-                  color={p.accentText}
-                  style={styles.newRoutineLabel}
+          {!services.routines.readOnly ? (
+            <Pressable
+              accessibilityLabel="New Routine"
+              accessibilityRole="button"
+              onPress={() => router.push("/routines/edit")}
+              style={styles.newRoutineHitArea}
+            >
+              {({ pressed }) => (
+                <View
+                  style={[
+                    styles.newRoutineButton,
+                    { backgroundColor: p.accent, opacity: pressed ? 0.8 : 1 },
+                  ]}
                 >
-                  New Routine
-                </AppText>
-              </View>
-            )}
-          </Pressable>
+                  <AppText
+                    variant="caption"
+                    color={p.accentText}
+                    style={styles.newRoutineLabel}
+                  >
+                    New Routine
+                  </AppText>
+                </View>
+              )}
+            </Pressable>
+          ) : null}
         </View>
 
         {loading ? (
@@ -242,6 +244,7 @@ export function RoutineListScreen() {
                   dayName={todayName}
                   routines={todaysRoutines}
                   setupRoutineId={routines[0].id}
+                  readOnly={services.routines.readOnly}
                 />
               ) : null
             }
@@ -278,11 +281,13 @@ function TodayWorkoutWidget({
   dayName,
   routines,
   setupRoutineId,
+  readOnly,
 }: {
   activeWorkout?: Workout
   dayName: string
   routines: Routine[]
   setupRoutineId: string
+  readOnly: boolean
 }) {
   const p = usePalette()
   return (
@@ -350,16 +355,18 @@ function TodayWorkoutWidget({
             No routine is scheduled for today. Add today to a routine’s weekly
             schedule to see it here.
           </AppText>
-          <Button
-            label="Set today’s workout"
-            variant="secondary"
-            onPress={() =>
-              router.push({
-                pathname: "/routines/edit",
-                params: { id: setupRoutineId },
-              })
-            }
-          />
+          {!readOnly ? (
+            <Button
+              label="Set today’s workout"
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: "/routines/edit",
+                  params: { id: setupRoutineId },
+                })
+              }
+            />
+          ) : null}
         </View>
       )}
     </View>
@@ -789,37 +796,39 @@ export function RoutineDetailsScreen() {
               {routine.entries.length} exercises · your plan for today
             </AppText>
           </View>
-          <Pressable
-            accessibilityLabel="More routine actions"
-            accessibilityRole="button"
-            accessibilityState={{ expanded: actionsOpen, disabled: busy }}
-            disabled={busy}
-            onPress={() => setActionsOpen(true)}
-            style={styles.moreAction}
-          >
-            {({ pressed }) => (
-              <View
-                style={[
-                  styles.moreActionVisual,
-                  {
-                    backgroundColor: pressed
-                      ? p.backgroundSelected
-                      : p.backgroundElement,
-                    borderColor: p.border,
-                    opacity: busy ? 0.6 : 1,
-                  },
-                ]}
-              >
-                <Text
-                  accessibilityElementsHidden
-                  importantForAccessibility="no"
-                  style={[styles.moreActionLabel, { color: p.textSecondary }]}
+          {!services.routines.readOnly ? (
+            <Pressable
+              accessibilityLabel="More routine actions"
+              accessibilityRole="button"
+              accessibilityState={{ expanded: actionsOpen, disabled: busy }}
+              disabled={busy}
+              onPress={() => setActionsOpen(true)}
+              style={styles.moreAction}
+            >
+              {({ pressed }) => (
+                <View
+                  style={[
+                    styles.moreActionVisual,
+                    {
+                      backgroundColor: pressed
+                        ? p.backgroundSelected
+                        : p.backgroundElement,
+                      borderColor: p.border,
+                      opacity: busy ? 0.6 : 1,
+                    },
+                  ]}
                 >
-                  ⋯
-                </Text>
-              </View>
-            )}
-          </Pressable>
+                  <Text
+                    accessibilityElementsHidden
+                    importantForAccessibility="no"
+                    style={[styles.moreActionLabel, { color: p.textSecondary }]}
+                  >
+                    ⋯
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          ) : null}
         </View>
 
         {error ? (

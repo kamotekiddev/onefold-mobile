@@ -86,12 +86,17 @@ export interface FutureTarget extends ProgressionSuggestion {
   sourceWorkoutId: string
 }
 export interface AppData {
-  schemaVersion: 2
+  schemaVersion: 3
   exercises: Exercise[]
   routines: Routine[]
+  routineCache: RoutineCache | null
   workouts: Workout[]
   futureTargets: FutureTarget[]
   preferences: { weightUnit: WeightUnit }
+}
+export interface RoutineCache {
+  fetchedAt: number
+  source: "backend"
 }
 export interface StoreSnapshot {
   status: "loading" | "ready" | "error"
