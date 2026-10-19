@@ -12,8 +12,8 @@ Onefold is a mobile-first strength-training app for creating routines, following
 | Area           | Current behavior                                                                                                                        |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Authentication | Email registration, sign-in, saved sessions, refresh, and local sign-out through the Onefold authentication integration on iOS/Android. |
-| Routines       | Create, edit, duplicate, delete, reorder exercises, and assign weekly days.                                                             |
-| Exercises      | Search/filter the exercise catalog returned with backend workout templates.                                                             |
+| Routines       | Create backend templates with ordered exercises and weekly days; read definitions through a 24-hour cache. Editing, duplication, and deletion are currently unavailable for remote routines. |
+| Exercises      | Add weighted/bodyweight exercises through the API; search known exercises returned with templates or created on this device. |
 | Workouts       | Start or resume one active workout, follow exercises and sets in sequence, log reps/weight, add sets, and use rest timers.              |
 | Progression    | Manual, weight, or reps modes; completed sessions generate future targets.                                                              |
 | History        | Completed workout records retain exercise and prescription snapshots.                                                                   |

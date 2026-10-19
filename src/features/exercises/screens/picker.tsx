@@ -25,6 +25,7 @@ import { MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useRoutineDraft } from "@/features/routines"
 import { useApp } from "@/lib/app-provider"
 import type { Exercise, RoutineEntry } from "@/types/domain"
+import { CreateExerciseForm } from "../components/create-exercise-form"
 
 let entryCounter = 0
 export function ExercisePickerScreen() {
@@ -227,6 +228,14 @@ export function ExercisePickerScreen() {
                   muscleGroup,
                   setMuscleGroup
                 )}
+                <CreateExerciseForm
+                  onCreated={(exercise) => {
+                    setSelected((current) => [...current, exercise.id])
+                    setSearch("")
+                    setMuscleGroup("")
+                    setRetry((value) => value + 1)
+                  }}
+                />
                 <View style={styles.resultsHeader}>
                   <AppText variant="heading">Exercises</AppText>
                   {!loading && !error ? (
@@ -378,7 +387,7 @@ export function ExercisePickerScreen() {
                         order: current.value.entries.length + index,
                         setCount: 3,
                         repMin: 8,
-                        repMax: 12,
+                        repMax: services.routines.readOnly ? 8 : 12,
                         ...(exercise?.trackingType === "bodyweight"
                           ? {}
                           : { startingWeight: 0 }),

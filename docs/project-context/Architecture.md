@@ -50,6 +50,8 @@ Sign-out removes local credentials; it is not remote token revocation. The READM
 
 Routines and their exercise catalog are fetched from the authenticated workout-template API and stored as a derived account-local cache with a 24-hour TTL. The first production hydration does not create a default routine from the local seed. Expired cache refreshes replace the cached routines atomically; a failed refresh keeps the last successful cache available for offline workout use. Template fields that are not present in the current API are normalized with documented mobile defaults.
 
+Routine creation uses authenticated `POST /api/workout/Template`, loads the saved definition with server IDs, and expires the list cache immediately. The exercise picker offers `POST /api/workout/Exercise` because the API has no exercise-list endpoint. Cache refresh retains known server exercises and their known tracking types; fresh accounts and resets have no seeded catalog. Editing, deletion, and duplication of remote routines remain blocked. See [[Decisions#D010 — Allow backend routine creation independently of other mutations]].
+
 Writes are serialized; the store clones data and persists before publishing the updated snapshot. Unsupported stored shapes surface an error instead of being overwritten. Account disposal blocks old stores from publishing; provider cleanup clears workout drafts.
 
 The old `onefold-demo.db` is preserved separately, with no automatic import into real accounts. Signing out retains account training data. The Settings reset action replaces only the active account's training data with seed data and leaves the user signed in.

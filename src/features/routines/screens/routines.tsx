@@ -188,31 +188,29 @@ export function RoutineListScreen() {
           >
             A little structure. A stronger you.
           </AppText>
-          {!services.routines.readOnly ? (
-            <Pressable
-              accessibilityLabel="New Routine"
-              accessibilityRole="button"
-              onPress={() => router.push("/routines/edit")}
-              style={styles.newRoutineHitArea}
-            >
-              {({ pressed }) => (
-                <View
-                  style={[
-                    styles.newRoutineButton,
-                    { backgroundColor: p.accent, opacity: pressed ? 0.8 : 1 },
-                  ]}
+          <Pressable
+            accessibilityLabel="New Routine"
+            accessibilityRole="button"
+            onPress={() => router.push("/routines/edit")}
+            style={styles.newRoutineHitArea}
+          >
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.newRoutineButton,
+                  { backgroundColor: p.accent, opacity: pressed ? 0.8 : 1 },
+                ]}
+              >
+                <AppText
+                  variant="caption"
+                  color={p.accentText}
+                  style={styles.newRoutineLabel}
                 >
-                  <AppText
-                    variant="caption"
-                    color={p.accentText}
-                    style={styles.newRoutineLabel}
-                  >
-                    New Routine
-                  </AppText>
-                </View>
-              )}
-            </Pressable>
-          ) : null}
+                  New Routine
+                </AppText>
+              </View>
+            )}
+          </Pressable>
         </View>
 
         {loading ? (
@@ -263,9 +261,12 @@ export function RoutineListScreen() {
                   color={p.textSecondary}
                   style={styles.emptyMessage}
                 >
-                  Create a routine, choose your exercises, and set your starting
-                  targets.
+                  Create a routine, choose your exercises, and set your targets.
                 </AppText>
+                <Button
+                  label="Create routine"
+                  onPress={() => router.push("/routines/edit")}
+                />
               </View>
             }
             renderItem={renderRoutine}

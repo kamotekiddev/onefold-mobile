@@ -82,10 +82,11 @@ function pounds(value: unknown) {
   )
 }
 
-function mapTemplate(
+export function mapTemplate(
   summary: JsonObject,
   detail: JsonObject,
-  now: number
+  now: number,
+  knownExercises: Exercise[] = []
 ): { routine: Routine; exercises: Exercise[] } {
   const templateId = stringValue(summary, "template id", "id", "Id")
   const name = stringValue(detail, "template name", "name", "Name")
@@ -152,7 +153,9 @@ function mapTemplate(
       name: exerciseName,
       primaryMuscleGroup: "General",
       equipment: "Unknown",
-      trackingType: "weighted",
+      trackingType:
+        knownExercises.find((exercise) => exercise.id === exerciseId)
+          ?.trackingType ?? "weighted",
     })
     entries.push({
       id: entryId,
@@ -224,7 +227,8 @@ export function createRemoteRoutineLoader(
             return mapTemplate(
               summary,
               object(rawDetail, "template detail"),
-              now()
+              now(),
+              current.exercises
             )
           })
         )
@@ -238,7 +242,14 @@ export function createRemoteRoutineLoader(
         ]
         await store.mutate((data) => {
           data.routines = routines
-          data.exercises = exercises
+          data.exercises = [
+            ...new Map(
+              [...data.exercises, ...exercises].map((exercise) => [
+                exercise.id,
+                exercise,
+              ])
+            ).values(),
+          ]
           data.routineCache = { source: "backend", fetchedAt: now() }
         })
         return routines

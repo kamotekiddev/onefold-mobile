@@ -16,6 +16,7 @@ export type AuthenticatedRequest = (
   options?: ApiRequest
 ) => Promise<unknown>
 export interface ExerciseService {
+  create(input: Pick<Exercise, "name" | "trackingType">): Promise<Exercise>
   search(query?: ExerciseQuery): Promise<Exercise[]>
   getById(id: string): Promise<Exercise>
 }

@@ -58,7 +58,7 @@ export function makeSeed(
   })
   return {
     schemaVersion: 3,
-    exercises,
+    exercises: options.includeDefaultRoutine === false ? [] : exercises,
     routines:
       options.includeDefaultRoutine === false
         ? []

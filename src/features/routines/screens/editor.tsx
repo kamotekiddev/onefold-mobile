@@ -45,6 +45,7 @@ export function RoutineEditorScreen() {
   const [allowLeave, setAllowLeave] = useState(false)
   const unit = state.data?.preferences.weightUnit ?? "kg"
   useEffect(() => {
+    if (id && services.routines.readOnly) return
     let alive = true
     const load = async () => {
       const value = await (id
@@ -77,18 +78,21 @@ export function RoutineEditorScreen() {
     }
   }, [id, services, setDraft])
   const dirty = !!draft && JSON.stringify(draft.value) !== draft.baseline
-  usePreventRemove(dirty && !allowLeave, ({ data }) => {
-    confirmAction(
-      "Discard changes?",
-      "Your unsaved routine changes will be lost.",
-      "Discard",
-      () => {
-        setAllowLeave(true)
-        navigation.dispatch(data.action)
-      }
-    )
-  })
-  if (services.routines.readOnly)
+  usePreventRemove(
+    dirty && !allowLeave && !(id && services.routines.readOnly),
+    ({ data }) => {
+      confirmAction(
+        "Discard changes?",
+        "Your unsaved routine changes will be lost.",
+        "Discard",
+        () => {
+          setAllowLeave(true)
+          navigation.dispatch(data.action)
+        }
+      )
+    }
+  )
+  if (id && services.routines.readOnly)
     return (
       <Screen
         title="Routine editor"
