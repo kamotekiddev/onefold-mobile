@@ -81,3 +81,13 @@ PR titles start with a lowercase bracketed type, followed by an exact known issu
 Add a stable ID, date recorded, status, decision, rationale when known, practical consequences, and evidence. Label proposals as proposed. If a choice changes, mark the old entry superseded and link its replacement.
 
 Related: [[Architecture]], [[Current State]].
+
+## D008 — Dismissible offline retry notice
+
+**Status:** Implemented; user-approved on 2026-10-19.
+
+Show the `offline-local` retry action as a non-blocking floating notice above the bottom navigation. Users can dismiss it for the current offline episode; leaving the offline state makes it eligible to show again.
+
+**Rationale:** Keep local training content available without permanently consuming layout space beneath the tab bar.
+
+**Source:** [App layout](../../src/app/%28app%29/_layout.tsx).
