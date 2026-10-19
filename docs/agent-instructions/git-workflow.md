@@ -27,6 +27,15 @@ Use these rules when working in the repository.
 - For PR summaries, include what changed, how it was verified, and any known risks.
 - Mention skipped checks and why they were skipped.
 
+## PR Titles
+
+- Always begin PR titles with a lowercase change type in square brackets: `[feature]`, `[fix]`, `[hotfix]`, `[refactor]`, `[docs]`, `[test]`, `[chore]`, `[perf]`, or `[ci]`.
+- Choose the type that best describes the primary change. Use `[hotfix]` for urgent production fixes and `[fix]` for ordinary bug fixes.
+- When an associated issue or ticket number is available in the task context, include its exact identifier immediately after the type prefix. Do not invent identifiers or use the PR's own number as the ticket number.
+- Use the format `[type] ISSUE-ID Short description`, or `[type] Short description` when no issue or ticket is known.
+- Examples: `[feature] #123 Add email authentication`, `[hotfix] APP-456 Fix session refresh failures`, and `[docs] Update agent workflow rules`.
+- Apply these conventions when creating PRs or updating their titles, unless the user explicitly requests a different title format.
+
 ## Reviews
 
 - For code review requests, prioritize bugs, regressions, missing tests, and maintainability risks.
