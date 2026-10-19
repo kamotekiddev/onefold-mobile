@@ -1,5 +1,15 @@
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
+## Project Memory (Obsidian)
+
+The repository root is the Obsidian vault. Project context lives in `docs/project-context/`.
+
+- At the start of a task, read [Start Here](docs/project-context/Start%20Here.md) and [Current State](docs/project-context/Current%20State.md), then the topic notes relevant to the work.
+- Verify dated notes against current source and repository instructions before relying on them.
+- After meaningful work, update the relevant notes and `Current State.md` with changes, verification results, and unfinished work. Record durable decisions, rationale when known, and evidence in `Decisions.md`.
+- Distinguish implemented behavior, proposals, and open questions. Do not invent prior decisions or user approval; mark superseded decisions explicitly.
+- Keep notes concise and linked. Never record credentials, tokens, real account data, or local environment values. Preserve personal notes and `.obsidian/` settings.
+
 ## Additional Instructions
 
 Read the relevant instruction files before editing that area:
