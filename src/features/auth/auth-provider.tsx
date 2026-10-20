@@ -1,5 +1,6 @@
 import * as Network from "expo-network"
 import * as SecureStore from "expo-secure-store"
+import { focusManager, onlineManager } from "@tanstack/react-query"
 import {
   createContext,
   useContext,
@@ -72,14 +73,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!manager) return
     void manager.restore()
+    focusManager.setFocused(AppState.currentState === "active")
+    // Do not submit writes until the initial connectivity check completes.
+    onlineManager.setOnline(false)
     const foreground = AppState.addEventListener("change", (next) => {
+      focusManager.setFocused(next === "active")
       if (next === "active") void manager.retry(true).catch(() => undefined)
     })
-    const network = Network.addNetworkStateListener((next) => {
+    let active = true
+    let receivedNetworkEvent = false
+    const updateNetwork = (next: Network.NetworkState) => {
+      onlineManager.setOnline(
+        next.isConnected !== false && next.isInternetReachable !== false
+      )
       if (next.isInternetReachable === true)
         void manager.retry(true).catch(() => undefined)
+    }
+    const network = Network.addNetworkStateListener((next) => {
+      receivedNetworkEvent = true
+      updateNetwork(next)
     })
+    void Network.getNetworkStateAsync()
+      .then((next) => {
+        if (active && !receivedNetworkEvent) updateNetwork(next)
+      })
+      .catch(() => {
+        // An unavailable connectivity API should not prevent actual requests.
+        if (active && !receivedNetworkEvent) onlineManager.setOnline(true)
+      })
     return () => {
+      active = false
       foreground.remove()
       network.remove()
     }
@@ -100,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut: manager?.signOut ?? unavailable,
         retry: manager?.retry ?? unavailable,
         restore: manager?.restore ?? unavailable,
-        request: manager?.request ?? unavailable,
+        request: manager?.bindRequest() ?? unavailable,
         accountKey: state.session
           ? `${getApiBaseUrl()}|${state.session.identity.id}`
           : null,

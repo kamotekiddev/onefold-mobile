@@ -7,28 +7,28 @@ tags: [onefold, architecture]
 
 ## Stack and ownership
 
-As declared in [package.json](../../package.json): Expo `~57.0.27`, React `19.2.3`, React Native `0.86.3`, Expo Router `~57.0.25`, and TypeScript `~6.0.3`. Re-read the manifest before API work.
+As declared in [package.json](../../package.json): Expo `~57.0.27`, React `19.2.3`, React Native `0.86.3`, Expo Router `~57.0.25`, TypeScript `~6.0.3`, and TanStack Query `^5.104.5`. Re-read the manifest before API work.
 
-| Location                                       | Responsibility                                                             |
-| ---------------------------------------------- | -------------------------------------------------------------------------- |
-| `src/app/`                                     | Router screens, route groups, layouts, and access gates.                   |
-| `src/features/auth/`                           | Auth UI, validation, provider, and session manager.                        |
-| `src/features/routines/`                       | Routine list, editor, configuration, draft state, and reordering.          |
-| `src/features/exercises/`                      | Exercise picker.                                                           |
-| `src/features/workouts/`                       | Start, active, detail screens, set controls, rest UI, and workout helpers. |
-| `src/features/history/`                        | History screen.                                                            |
-| `src/features/settings/`                       | Units, account, local reset, and development failure simulation.           |
-| `src/lib/`                                     | Shared API client, app provider, storage, and training domain services.    |
-| `src/types/domain.ts`                          | Shared training model and storage snapshot types.                          |
-| `src/components/ui/`, `src/constants/theme.ts` | Shared UI and theme tokens.                                                |
+| Location                                       | Responsibility                                                                  |
+| ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| `src/app/`                                     | Router screens, route groups, layouts, and access gates.                        |
+| `src/features/auth/`                           | Auth UI, validation, provider, and session manager.                             |
+| `src/features/routines/`                       | Routine queries/mutations, list, editor, configuration, drafts, and reordering. |
+| `src/features/exercises/`                      | Exercise picker, reactive catalog filtering, and creation mutation.             |
+| `src/features/workouts/`                       | Start, active, detail screens, set controls, rest UI, and workout helpers.      |
+| `src/features/history/`                        | History screen.                                                                 |
+| `src/features/settings/`                       | Units, account, local reset, and development failure simulation.                |
+| `src/lib/`                                     | Shared API client, app provider, storage, and training domain services.         |
+| `src/types/domain.ts`                          | Shared training model and storage snapshot types.                               |
+| `src/components/ui/`, `src/constants/theme.ts` | Shared UI and theme tokens.                                                     |
 
 Routes use `(auth)` and `(app)` groups. The app tabs are Routines, History, and Settings; routine editing and workout screens live outside the tab group. See [root layout](../../src/app/_layout.tsx) and [tabs layout](../../src/app/%28app%29/%28tabs%29/_layout.tsx).
 
-The root mounts `AuthProvider`. An account boundary mounts `AppProvider` keyed by account identity; navigation waits for training storage hydration. `useApp()` exposes the store snapshot and services. State subscriptions use `useSyncExternalStore`.
+The root mounts `AuthProvider`. An account boundary mounts `AppProvider` keyed by account identity; navigation waits for training storage hydration. `useApp()` exposes the store snapshot and services. State subscriptions use `useSyncExternalStore`. Each account boundary owns a stable QueryClient; cleanup disposes the store, cancels/clears outgoing queries, and clears workout drafts.
 
 ## Authentication and API
 
-[API client](../../src/lib/api-client.ts) centralizes the public `EXPO_PUBLIC_API_URL`, JSON requests, a 15-second timeout, and normalized network, timeout, HTTP, and invalid-response errors.
+[API client](../../src/lib/api-client.ts) centralizes the public `EXPO_PUBLIC_API_URL`, JSON requests, a 15-second timeout, and normalized network, timeout, cancellation, HTTP, and invalid-response errors. Shared HTTP fallbacks are resource-neutral; sign-in/up keep credential-specific messages.
 
 [Session manager](../../src/features/auth/services/session.ts) calls:
 
@@ -40,7 +40,7 @@ The root mounts `AuthProvider`. An account boundary mounts `AppProvider` keyed b
 
 The client validates token shape and reads identity/expiry claims; decoding claims is not server-side signature verification. Native sessions are saved in SecureStore with a version and API environment. Credentials must be persisted before sign-in is reported as successful.
 
-Refreshes are shared across concurrent requests. Protected requests retry once after a 401, and account-generation checks reject stale responses after account changes. Transient refresh failures can retain an `offline-local` session for local training access. Foreground/network events trigger bounded automatic retries.
+Refreshes are shared across concurrent requests. Protected requests retry once after a 401, and account-generation checks reject stale responses after account changes. Provider transports bind their account generation so later steps of an outgoing multi-request flow cannot send using a replacement session, even for the same identity. Transient refresh failures can retain an `offline-local` session for local training access. Foreground/network events trigger bounded automatic retries. Protected-request refresh failures have a separate `session` error kind so Query does not repeat authentication recovery. A cancelled caller cannot send its protected request after a shared refresh completes.
 
 Sign-out removes local credentials; it is not remote token revocation. The README reports no server logout endpoint. Backend implementation and deployment were not inspected for this snapshot.
 
@@ -48,13 +48,17 @@ Sign-out removes local credentials; it is not remote token revocation. The READM
 
 [Native account store](../../src/lib/storage/app-store.ts) opens `onefold-accounts.db` and stores JSON in `account_state(account_key, value)`. The key combines normalized API base URL and account ID. The current `AppData` schema version is 3.
 
-Routines and their exercise catalog are fetched from the authenticated workout-template API and stored as a derived account-local cache with a 24-hour TTL. The first production hydration does not create a default routine from the local seed. Expired cache refreshes replace the cached routines atomically; a failed refresh keeps the last successful cache available for offline workout use. Template fields that are not present in the current API are normalized with documented mobile defaults.
+Routines and their exercise catalog are fetched from the authenticated workout-template API and persisted as an account-local offline snapshot. TanStack Query now owns freshness (five-minute stale time), request sharing, cancellation, and refresh errors; the former service TTL and shared task are removed. Snapshot hydration retains the original fetch timestamp, including successful empty collections. Refreshes persist atomically before query success; failures preserve saved content and expose the error. Production hydration creates no default routine. Template fields absent from the API still use documented mobile defaults.
 
-Routine creation uses authenticated `POST /api/workout/Template`, loads the saved definition with server IDs, and expires the list cache immediately. The exercise picker offers `POST /api/workout/Exercise` because the API has no exercise-list endpoint. Cache refresh retains known server exercises and their known tracking types; fresh accounts and resets have no seeded catalog. Editing, deletion, and duplication of remote routines remain blocked. See [[Decisions#D010 — Allow backend routine creation independently of other mutations]].
+Feature [query options](../../src/features/routines/services/queries.ts) and [hooks](../../src/features/routines/hooks/queries.ts) share the account client's `routines` collection between list/details; details select their routine from that collection. Summaries lack workout prescriptions, so reads still fetch details with at most four concurrent requests. A service revision fence and query cancellation prevent older reads from overwriting creation/reset results. No second persisted query cache was introduced.
+
+The auth provider's existing AppState/expo-network listeners also drive Query focus/connectivity, including an initial network check protected against newer listener events. Stale reads refresh on foreground/reconnect or manual refresh. Transient network/timeout/408/429/5xx reads retry at most twice with backoff; cancellation, validation, authorization, session recovery, and storage failures do not. List/detail screens retain cached content while refreshing or reporting failure, distinguish offline without data, and offer retry; the list supports pull-to-refresh.
+
+Routine creation uses authenticated `POST /api/workout/Template`, loads the saved definition with server IDs, and marks the durable collection stale without changing its original fetch time. Mutation settlement publishes the durable snapshot and invalidates Query. The exercise picker offers `POST /api/workout/Exercise` because the API has no exercise-list endpoint. Cache refresh retains known server exercises and their known tracking types; fresh accounts and resets have no seeded catalog. Creation mutations reject offline submissions immediately (`networkMode: always`, no automatic retries); they never pause for later POST replay. Exercise creation retains remote success for local-write retry; routine creation retains the returned template ID through detail/storage failures. Identical concurrent submissions share their in-flight creation within the service instance. This recovery is in-memory, not durable backend idempotency across restarts. Editing, deletion, and duplication of remote routines remain blocked. See [[Decisions#D010 — Allow backend routine creation independently of other mutations]].
 
 Writes are serialized; the store clones data and persists before publishing the updated snapshot. Unsupported stored shapes surface an error instead of being overwritten. Account disposal blocks old stores from publishing; provider cleanup clears workout drafts.
 
-The old `onefold-demo.db` is preserved separately, with no automatic import into real accounts. Signing out retains account training data. The Settings reset action replaces only the active account's training data with seed data and leaves the user signed in.
+The old `onefold-demo.db` is preserved separately, with no automatic import into real accounts. Signing out retains account training data. The Settings reset action replaces only the active account's training data with seed data, cancels pending reads, empties/invalidates routine query data, and leaves the user signed in. Exercise filtering and completed history now derive reactively from the store; production services no longer inject the demo delay.
 
 The [web storage adapter](../../src/lib/storage/app-store.web.ts) is intentionally unavailable and excludes native SQLite from that bundle.
 

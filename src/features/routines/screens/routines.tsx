@@ -1,4 +1,4 @@
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
 import {
   ActivityIndicator,
@@ -16,8 +16,11 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { AppText, Button, ErrorMessage, Screen } from "@/components/ui"
 import { Colors, MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
+import { useOnline } from "@/hooks/use-online"
 import { useAuth } from "@/features/auth"
 import type { Routine, Weekday, Workout } from "@/types/domain"
+
+import { useRoutine, useRoutines } from "../hooks/queries"
 
 import {
   confirmAction,
@@ -30,10 +33,16 @@ export function RoutineListScreen() {
   const { state, services } = useApp()
   const auth = useAuth()
   const p = usePalette()
-  const [routines, setRoutines] = useState<Routine[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const showEmptyState = !loading && !error && routines.length === 0
+  const query = useRoutines()
+  const routines = query.data ?? []
+  const offline = !useOnline()
+  const loading = query.isPending && !offline
+  const error = query.error ? errorText(query.error) : ""
+  const load = () => {
+    void query.refetch()
+  }
+  const showEmptyState =
+    !loading && !error && !offline && query.isSuccess && routines.length === 0
   const exerciseNames = useMemo(
     () =>
       new Map(
@@ -55,26 +64,6 @@ export function RoutineListScreen() {
   const activeWorkout = state.data?.workouts.find(
     (workout) => workout.status === "inProgress"
   )
-  const load = useCallback(() => {
-    let alive = true
-    setLoading(true)
-    setError("")
-    services.routines
-      .list()
-      .then((value) => {
-        if (alive) setRoutines(value)
-      })
-      .catch((e) => {
-        if (alive) setError(errorText(e))
-      })
-      .finally(() => {
-        if (alive) setLoading(false)
-      })
-    return () => {
-      alive = false
-    }
-  }, [services])
-  useFocusEffect(load)
 
   const renderRoutine: ListRenderItem<Routine> = useCallback(
     ({ item }) => {
@@ -223,54 +212,77 @@ export function RoutineListScreen() {
               color={p.accent}
             />
           </View>
-        ) : error ? (
+        ) : (error || offline) && !query.data ? (
           <View
             style={[
               styles.stateCard,
               { backgroundColor: p.surface, borderColor: p.border },
             ]}
           >
-            <ErrorMessage message={error} />
+            <ErrorMessage
+              message={
+                error || "You’re offline. Connect to load your routines."
+              }
+            />
             <Button label="Try again" onPress={load} />
           </View>
         ) : (
           <FlatList
             contentContainerStyle={styles.listContent}
             data={routines}
+            refreshing={query.isFetching && !query.isPending}
+            onRefresh={load}
             keyExtractor={(item) => item.id}
             ListHeaderComponent={
-              routines.length ? (
-                <TodayWorkoutWidget
-                  activeWorkout={activeWorkout}
-                  dayName={todayName}
-                  routines={todaysRoutines}
-                  setupRoutineId={routines[0].id}
-                  readOnly={services.routines.readOnly}
-                />
-              ) : null
+              <View style={{ gap: 12 }}>
+                {error || offline ? (
+                  <View style={styles.stateCard}>
+                    <ErrorMessage
+                      message={
+                        error
+                          ? `Could not refresh routines. ${error}`
+                          : "You’re offline. Showing saved routines."
+                      }
+                    />
+                    <Button label="Refresh routines" onPress={load} />
+                  </View>
+                ) : null}
+                {routines.length ? (
+                  <TodayWorkoutWidget
+                    activeWorkout={activeWorkout}
+                    dayName={todayName}
+                    routines={todaysRoutines}
+                    setupRoutineId={routines[0].id}
+                    readOnly={services.routines.readOnly}
+                  />
+                ) : null}
+              </View>
             }
             ListEmptyComponent={
-              <View
-                style={[
-                  styles.stateCard,
-                  { backgroundColor: p.surface, borderColor: p.border },
-                ]}
-              >
-                <AppText style={styles.emptyTitle}>
-                  Make room for your first workout
-                </AppText>
-                <AppText
-                  variant="caption"
-                  color={p.textSecondary}
-                  style={styles.emptyMessage}
+              error || offline ? null : (
+                <View
+                  style={[
+                    styles.stateCard,
+                    { backgroundColor: p.surface, borderColor: p.border },
+                  ]}
                 >
-                  Create a routine, choose your exercises, and set your targets.
-                </AppText>
-                <Button
-                  label="Create routine"
-                  onPress={() => router.push("/routines/edit")}
-                />
-              </View>
+                  <AppText style={styles.emptyTitle}>
+                    Make room for your first workout
+                  </AppText>
+                  <AppText
+                    variant="caption"
+                    color={p.textSecondary}
+                    style={styles.emptyMessage}
+                  >
+                    Create a routine, choose your exercises, and set your
+                    targets.
+                  </AppText>
+                  <Button
+                    label="Create routine"
+                    onPress={() => router.push("/routines/edit")}
+                  />
+                </View>
+              )
             }
             renderItem={renderRoutine}
           />
@@ -656,10 +668,22 @@ export function RoutineDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { state, services } = useApp()
   const p = usePalette()
-  const [routine, setRoutine] = useState<Routine | null>(null)
-  const [error, setError] = useState("")
+  const query = useRoutine(typeof id === "string" ? id : "")
+  const routine = query.data
+  const online = useOnline()
+  const [actionError, setError] = useState("")
+  const error =
+    actionError ||
+    (query.error
+      ? errorText(query.error)
+      : !online
+        ? "You’re offline. Showing saved routines when available."
+        : "")
+  const load = () => {
+    void query.refetch()
+  }
   const [busy, setBusy] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const loading = query.isPending && online
   const [actionsOpen, setActionsOpen] = useState(false)
   const unit = state.data?.preferences.weightUnit ?? "kg"
   const exerciseNames = useMemo(
@@ -672,27 +696,7 @@ export function RoutineDetailsScreen() {
       ),
     [state.data?.exercises]
   )
-  const load = useCallback(() => {
-    let alive = true
-    setRoutine(null)
-    setLoading(true)
-    setError("")
-    services.routines
-      .getById(typeof id === "string" ? id : "")
-      .then((value) => {
-        if (alive) setRoutine(value)
-      })
-      .catch((e) => {
-        if (alive) setError(errorText(e))
-      })
-      .finally(() => {
-        if (alive) setLoading(false)
-      })
-    return () => {
-      alive = false
-    }
-  }, [id, services])
-  useFocusEffect(load)
+
   const run = async (action: () => Promise<void>) => {
     if (busy) return
     setBusy(true)
@@ -843,6 +847,7 @@ export function RoutineDetailsScreen() {
             ]}
           >
             <ErrorMessage message={error} />
+            <Button label="Refresh routine" onPress={load} />
           </View>
         ) : null}
 

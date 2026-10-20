@@ -99,7 +99,7 @@ Show the `offline-local` retry action as a non-blocking floating notice above th
 
 **Status:** Implemented on 2026-10-19.
 
-Fetch authenticated workout templates from `GET /api/workout/Template` and `GET /api/workout/Template/{id}`. Normalize them into the existing local routine/workout model and cache the result per account for 24 hours. Production account hydration no longer creates the local default routine.
+Fetch authenticated workout templates from `GET /api/workout/Template` and `GET /api/workout/Template/{id}`. Normalize them into the existing local routine/workout model and cache the result per account. **The original 24-hour freshness policy is superseded by D014.** Production account hydration no longer creates the local default routine.
 
 **Consequence:** Local workouts, history, progression, and preferences remain durable device-local data, while routine reads come from the backend or the last successful cache. The original blanket restriction on routine creation is superseded by D010 below. Editing, deletion, and duplication remain unavailable in the mobile integration.
 
@@ -111,7 +111,7 @@ Fetch authenticated workout templates from `GET /api/workout/Template` and `GET 
 
 **Status:** Implemented on 2026-10-19 after the user reported the missing creation action. Supersedes D009's blanket restriction on creation.
 
-Show New Routine on the list and Create routine in the empty state. Save with authenticated `POST /api/workout/Template`, retrieve the saved template's server IDs, and expire the collection cache immediately. A retry after a successful POST and failed detail fetch reuses the saved template ID within the account session.
+Show New Routine on the list and Create routine in the empty state. Save with authenticated `POST /api/workout/Template`, retrieve the saved template's server IDs, and invalidate the collection immediately (D014 now coordinates Query and the durable snapshot). A retry after a successful POST and failed detail fetch reuses the saved template ID within the account session.
 
 **Presentation refinement (2026-10-20, user-requested):** Hide the toolbar's New Routine action when the loaded empty state shows Create routine, superseding the initial duplicate-action presentation. Keep the toolbar action available for populated, loading, and error states. Evidence: [routine list](../../src/features/routines/screens/routines.tsx).
 
@@ -142,3 +142,15 @@ Open creation in a centered, safe-area-aware and keyboard-avoiding Modal above t
 **Rationale:** Make the current tracking choice visible and match the surrounding routine-builder controls while retaining the existing backend creation and selection flow.
 
 **Source:** [Exercise creation form](../../src/features/exercises/components/create-exercise-form.tsx), [[Architecture#Exercise creation presentation]].
+
+## D014 — Query owns remote fetching; SQLite retains offline workout inputs
+
+**Status:** Implemented on 2026-10-20 after the user requested execution of [[Data Fetching Handoff]]. Supersedes D009's 24-hour service TTL; preserves its backend source of truth and account-local training boundary.
+
+Use TanStack Query v5 in a stable account/environment-scoped client. Feature query/mutation hooks own remote routine request state; SQLite remains the durable routine/exercise snapshot used by local workouts. Hydrate with the original fetch timestamp, persist successful reads before publishing, surface refresh errors alongside cached content, and cancel/clear outgoing account queries. Local exercise filtering/history use reactive store reads.
+
+Initial policy: five-minute stale time, stale foreground/reconnect/manual refresh, at most two transient read retries with exponential backoff. Do not retry cancellation, validation/auth/session-refresh errors, or storage failures. Creation runs once with an immediate offline rejection and no paused/replayed POSTs. Preserve returned IDs/results through detail/local persistence failures so explicit retries can recover without another POST within the account session.
+
+**Rationale:** Remove duplicate TTL/request state while preserving offline workout data, authentication's shared refresh, and creation recovery. Template list summaries lack prescriptions, so the shared collection currently fetches details with concurrency capped at four; lazy details/batching would require a further data/contract change. No generic persisted query cache or new native dependency is needed.
+
+**Evidence:** [Query client](../../src/lib/query-client.ts), [routine options](../../src/features/routines/services/queries.ts), [routine adapter](../../src/lib/domain/routine-templates.ts), creation adapters/tests, and [[Architecture]]. Native device lifecycle/airplane-mode acceptance remains pending; automated tests cover the underlying behavior.

@@ -1,58 +1,21 @@
-import { router, useFocusEffect } from "expo-router"
-import { useCallback, useState } from "react"
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native"
+import { router } from "expo-router"
+import { useMemo } from "react"
+import { FlatList, Pressable, StyleSheet, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { AppText, Button, ErrorMessage, usePalette } from "@/components/ui"
+import { AppText, Button, usePalette } from "@/components/ui"
 import { MaxContentWidth, Radii } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
-import type { Workout } from "@/types/domain"
 
 export function HistoryScreen() {
-  const { services } = useApp()
+  const { state } = useApp()
   const p = usePalette()
-  const [workouts, setWorkouts] = useState<Workout[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-
-  const loadHistory = useCallback(
-    (isCurrent: () => boolean) => {
-      setLoading(true)
-      setError("")
-      services.workouts
-        .listHistory()
-        .then((results) => {
-          if (isCurrent()) setWorkouts(results)
-        })
-        .catch((failure) => {
-          if (isCurrent())
-            setError(
-              failure instanceof Error
-                ? failure.message
-                : "Unable to load history."
-            )
-        })
-        .finally(() => {
-          if (isCurrent()) setLoading(false)
-        })
-    },
-    [services]
-  )
-
-  useFocusEffect(
-    useCallback(() => {
-      let current = true
-      loadHistory(() => current)
-      return () => {
-        current = false
-      }
-    }, [loadHistory])
+  const workouts = useMemo(
+    () =>
+      (state.data?.workouts ?? [])
+        .filter((workout) => workout.status === "completed")
+        .sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0)),
+    [state.data?.workouts]
   )
 
   const openWorkout = (id: string) =>
@@ -98,149 +61,125 @@ export function HistoryScreen() {
           </AppText>
         </View>
 
-        {loading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator
-              accessibilityLabel="Loading workout history"
-              color={p.accent}
-            />
-          </View>
-        ) : error ? (
-          <View
-            style={[
-              styles.stateCard,
-              { backgroundColor: p.surface, borderColor: p.border },
-            ]}
-          >
-            <ErrorMessage message={error} />
-            <Button label="Try again" onPress={() => loadHistory(() => true)} />
-          </View>
-        ) : (
-          <FlatList
-            data={workouts}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
-            ListHeaderComponent={
-              workouts.length > 0 ? (
-                <View style={styles.listHeading}>
-                  <AppText variant="heading">Your sessions</AppText>
-                  <View
-                    style={[
-                      styles.countPill,
-                      { backgroundColor: p.accentSoft },
-                    ]}
-                  >
-                    <AppText
-                      variant="caption"
-                      color={p.accent}
-                      style={styles.countLabel}
-                    >
-                      {workouts.length}{" "}
-                      {workouts.length === 1 ? "session" : "sessions"}
-                    </AppText>
-                  </View>
-                </View>
-              ) : null
-            }
-            ListEmptyComponent={
-              <View
-                style={[
-                  styles.emptyCard,
-                  { backgroundColor: p.surface, borderColor: p.border },
-                ]}
-              >
+        <FlatList
+          data={workouts}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            workouts.length > 0 ? (
+              <View style={styles.listHeading}>
+                <AppText variant="heading">Your sessions</AppText>
                 <View
-                  style={[styles.emptyMark, { backgroundColor: p.accentSoft }]}
+                  style={[styles.countPill, { backgroundColor: p.accentSoft }]}
                 >
-                  <AppText variant="heading" color={p.accent}>
-                    01
+                  <AppText
+                    variant="caption"
+                    color={p.accent}
+                    style={styles.countLabel}
+                  >
+                    {workouts.length}{" "}
+                    {workouts.length === 1 ? "session" : "sessions"}
                   </AppText>
                 </View>
-                <AppText variant="heading">
-                  Your first session starts here
-                </AppText>
-                <AppText color={p.textSecondary}>
-                  Complete a workout to see your logged sets and progress here.
-                </AppText>
-                <Button
-                  label="Choose a routine"
-                  onPress={() => router.replace("/")}
-                />
               </View>
-            }
-            renderItem={({ item }) => {
-              const completed = item.entries
-                .flatMap((entry) => entry.sets)
-                .filter((set) => set.status === "completed").length
-              const minutes = Math.max(
-                1,
-                Math.round(
-                  ((item.finishedAt ?? item.startedAt) - item.startedAt) / 60000
-                )
+            ) : null
+          }
+          ListEmptyComponent={
+            <View
+              style={[
+                styles.emptyCard,
+                { backgroundColor: p.surface, borderColor: p.border },
+              ]}
+            >
+              <View
+                style={[styles.emptyMark, { backgroundColor: p.accentSoft }]}
+              >
+                <AppText variant="heading" color={p.accent}>
+                  01
+                </AppText>
+              </View>
+              <AppText variant="heading">
+                Your first session starts here
+              </AppText>
+              <AppText color={p.textSecondary}>
+                Complete a workout to see your logged sets and progress here.
+              </AppText>
+              <Button
+                label="Choose a routine"
+                onPress={() => router.replace("/")}
+              />
+            </View>
+          }
+          renderItem={({ item }) => {
+            const completed = item.entries
+              .flatMap((entry) => entry.sets)
+              .filter((set) => set.status === "completed").length
+            const minutes = Math.max(
+              1,
+              Math.round(
+                ((item.finishedAt ?? item.startedAt) - item.startedAt) / 60000
               )
-              const date = new Date(item.finishedAt ?? item.startedAt)
-              const dateLabel = date.toLocaleDateString(undefined, {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })
+            )
+            const date = new Date(item.finishedAt ?? item.startedAt)
+            const dateLabel = date.toLocaleDateString(undefined, {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
 
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Review ${item.routineName}, ${dateLabel}`}
-                  accessibilityHint="Opens workout details"
-                  onPress={() => openWorkout(item.id)}
-                  style={({ pressed }) => [
-                    styles.sessionCard,
-                    {
-                      backgroundColor: pressed
-                        ? p.backgroundElement
-                        : p.surface,
-                      borderColor: p.border,
-                    },
-                  ]}
-                >
-                  <View style={styles.sessionTopline}>
-                    <AppText
-                      variant="caption"
-                      color={p.accent}
-                      style={styles.dateLabel}
-                    >
-                      {dateLabel}
-                    </AppText>
-                    <AppText
-                      variant="heading"
-                      color={p.textSecondary}
-                      style={styles.disclosure}
-                    >
-                      ›
-                    </AppText>
-                  </View>
-                  <AppText variant="heading">{item.routineName}</AppText>
-                  <View style={styles.metrics}>
-                    <AppText variant="caption" color={p.textSecondary}>
-                      {minutes} min
-                    </AppText>
-                    <View
-                      style={[styles.metricDot, { backgroundColor: p.border }]}
-                    />
-                    <AppText variant="caption" color={p.textSecondary}>
-                      {completed} sets
-                    </AppText>
-                    <View
-                      style={[styles.metricDot, { backgroundColor: p.border }]}
-                    />
-                    <AppText variant="caption" color={p.textSecondary}>
-                      {item.entries.length} exercises
-                    </AppText>
-                  </View>
-                </Pressable>
-              )
-            }}
-          />
-        )}
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Review ${item.routineName}, ${dateLabel}`}
+                accessibilityHint="Opens workout details"
+                onPress={() => openWorkout(item.id)}
+                style={({ pressed }) => [
+                  styles.sessionCard,
+                  {
+                    backgroundColor: pressed ? p.backgroundElement : p.surface,
+                    borderColor: p.border,
+                  },
+                ]}
+              >
+                <View style={styles.sessionTopline}>
+                  <AppText
+                    variant="caption"
+                    color={p.accent}
+                    style={styles.dateLabel}
+                  >
+                    {dateLabel}
+                  </AppText>
+                  <AppText
+                    variant="heading"
+                    color={p.textSecondary}
+                    style={styles.disclosure}
+                  >
+                    ›
+                  </AppText>
+                </View>
+                <AppText variant="heading">{item.routineName}</AppText>
+                <View style={styles.metrics}>
+                  <AppText variant="caption" color={p.textSecondary}>
+                    {minutes} min
+                  </AppText>
+                  <View
+                    style={[styles.metricDot, { backgroundColor: p.border }]}
+                  />
+                  <AppText variant="caption" color={p.textSecondary}>
+                    {completed} sets
+                  </AppText>
+                  <View
+                    style={[styles.metricDot, { backgroundColor: p.border }]}
+                  />
+                  <AppText variant="caption" color={p.textSecondary}>
+                    {item.entries.length} exercises
+                  </AppText>
+                </View>
+              </Pressable>
+            )
+          }}
+        />
       </View>
     </SafeAreaView>
   )

@@ -3,10 +3,7 @@ import { test } from "node:test"
 
 import type { AppData } from "../../types/domain"
 import { makeSeed } from "./seed"
-import {
-  ROUTINE_CACHE_TTL_MS,
-  createRemoteRoutineLoader,
-} from "./routine-templates"
+import { createRemoteRoutineLoader } from "./routine-templates"
 
 function fixture() {
   let data = makeSeed(1000)
@@ -85,27 +82,27 @@ test("fetches and normalizes templates into routines", async () => {
   assert.equal(f.requests(), 2)
 })
 
-test("uses the cached templates within the one-day TTL", async () => {
+test("always fetches so query invalidation controls freshness", async () => {
   const f = fixture()
   await f.loader.list()
-  f.advance(ROUTINE_CACHE_TTL_MS - 1)
+  f.advance(1)
   await f.loader.list()
-  assert.equal(f.requests(), 2)
+  assert.equal(f.requests(), 4)
 })
 
-test("refreshes expired templates and keeps the last cache on failure", async () => {
+test("reports refresh failures without discarding the durable snapshot", async () => {
   const f = fixture()
   await f.loader.list()
-  f.advance(ROUTINE_CACHE_TTL_MS)
+  f.advance(1)
   const failingLoader = createRemoteRoutineLoader(
     f.store,
     async () => {
       throw new Error("offline")
     },
-    () => 1000 + ROUTINE_CACHE_TTL_MS
+    () => 1001
   )
-  const routines = await failingLoader.list()
-  assert.equal(routines[0].name, "Push day")
+  await assert.rejects(failingLoader.list(), /offline/)
+  assert.equal(f.data().routines[0].name, "Push day")
   assert.equal(f.requests(), 2)
 })
 
@@ -117,4 +114,32 @@ test("rejects malformed template payloads when no cache exists", async () => {
     () => 1000
   )
   await assert.rejects(loader.list(), { code: "INVALID_RESPONSE" })
+})
+
+test("detail fanout is bounded and caller cancellation never replaces saved data", async () => {
+  const f = fixture()
+  await f.loader.list()
+  const before = f.data()
+  let active = 0
+  let maximum = 0
+  let detailCalls = 0
+  const controller = new AbortController()
+  const loader = createRemoteRoutineLoader(f.store, async (path, options) => {
+    assert.equal(options?.signal, controller.signal)
+    if (path === "/api/workout/Template")
+      return Array.from({ length: 12 }, (_, id) => ({ id: String(id) }))
+    active++
+    detailCalls++
+    maximum = Math.max(maximum, active)
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    if (detailCalls >= 4) controller.abort()
+    active--
+    return { name: path, workoutExercises: [] }
+  })
+  await assert.rejects(loader.list({ signal: controller.signal }), {
+    kind: "cancelled",
+  })
+  assert.equal(maximum, 4)
+  assert.equal(detailCalls, 4)
+  assert.deepEqual(f.data(), before)
 })

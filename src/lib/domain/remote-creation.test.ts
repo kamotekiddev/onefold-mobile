@@ -5,7 +5,6 @@ import type { ApiRequest } from "../api-client"
 import type { AppData, RoutineInput } from "../../types/domain"
 import { createServices } from "./mock-services"
 import { makeSeed } from "./seed"
-import { ROUTINE_CACHE_TTL_MS } from "./routine-templates"
 
 const exerciseId = "11111111-1111-1111-1111-111111111111"
 const templateId = "22222222-2222-2222-2222-222222222222"
@@ -135,7 +134,8 @@ test("an empty account can create an exercise and routine on the backend, then r
       ],
     }
   )
-  assert.equal(f.data().routineCache?.fetchedAt, 1000 - ROUTINE_CACHE_TTL_MS)
+  assert.equal(f.data().routineCache?.fetchedAt, 1000)
+  assert.equal(f.data().routineCache?.invalidated, true)
   assert.equal((await f.services.routines.list())[0].id, templateId)
   assert.equal(
     (await f.services.exercises.search())[0].trackingType,
@@ -218,4 +218,121 @@ test("refresh keeps a newly created unused exercise and failed exercise creation
     /Cannot reach server/
   )
   assert.equal(f.data().exercises.length, 1)
+})
+
+test("an older collection response cannot remove a newly created routine", async () => {
+  let data = makeSeed(1000, { includeDefaultRoutine: false })
+  const exercise = {
+    id: exerciseId,
+    name: "Push-up",
+    trackingType: "bodyweight" as const,
+    primaryMuscleGroup: "General",
+    equipment: "Unknown",
+  }
+  data.exercises.push(exercise)
+  const store = {
+    read: async () => structuredClone(data),
+    async mutate<T>(fn: (draft: AppData) => T) {
+      const draft = structuredClone(data)
+      const result = fn(draft)
+      data = draft
+      return structuredClone(result)
+    },
+  }
+  let finishList!: (value: unknown) => void
+  let started!: () => void
+  const listStarted = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  const services = createServices(store, {
+    request: async (path, options) => {
+      if (options?.method === "POST") return { templateId }
+      if (path === "/api/workout/Template") {
+        started()
+        return new Promise((resolve) => {
+          finishList = resolve
+        })
+      }
+      return { id: templateId, name: "Created", workoutExercises: [] }
+    },
+  })
+  const oldRead = services.routines.list()
+  await listStarted
+  const saved = await services.routines.create(fixture().input)
+  finishList([])
+  await assert.rejects(oldRead, { kind: "cancelled" })
+  assert.equal(data.routines[0].id, saved.id)
+})
+
+test("remote success followed by storage failure retries locally without a second exercise POST", async () => {
+  let data = makeSeed(1000, { includeDefaultRoutine: false })
+  let fails = true
+  let posts = 0
+  const services = createServices(
+    {
+      read: async () => structuredClone(data),
+      async mutate<T>(fn: (draft: AppData) => T) {
+        if (fails) throw new Error("disk full")
+        const draft = structuredClone(data)
+        const result = fn(draft)
+        data = draft
+        return structuredClone(result)
+      },
+    },
+    {
+      request: async () => {
+        posts++
+        return { exerciseId }
+      },
+    }
+  )
+  const input = { name: "Push-up", trackingType: "bodyweight" as const }
+  await assert.rejects(services.exercises.create(input), {
+    code: "SAVED_NOT_STORED",
+  })
+  assert.equal(data.exercises.length, 0)
+  fails = false
+  await services.exercises.create(input)
+  assert.equal(posts, 1)
+  assert.equal(data.exercises.length, 1)
+})
+
+test("remote template success followed by a failed local write retains its ID for retry", async () => {
+  const seed = fixture()
+  let data = makeSeed(1000, { includeDefaultRoutine: false })
+  data.exercises.push({
+    id: exerciseId,
+    name: "Push-up",
+    trackingType: "bodyweight",
+    primaryMuscleGroup: "General",
+    equipment: "Unknown",
+  })
+  let fails = true
+  let posts = 0
+  const services = createServices(
+    {
+      read: async () => structuredClone(data),
+      async mutate<T>(fn: (draft: AppData) => T) {
+        if (fails) throw new Error("disk full")
+        const draft = structuredClone(data)
+        const result = fn(draft)
+        data = draft
+        return structuredClone(result)
+      },
+    },
+    {
+      request: async (_path, options) => {
+        if (options?.method === "POST") {
+          posts++
+          return { templateId }
+        }
+        return { name: "Saved routine", workoutExercises: [] }
+      },
+    }
+  )
+  await assert.rejects(services.routines.create(seed.input), /disk full/)
+  fails = false
+  await services.routines.create(seed.input)
+  assert.equal(posts, 1)
+  assert.equal(data.routines[0].id, templateId)
 })

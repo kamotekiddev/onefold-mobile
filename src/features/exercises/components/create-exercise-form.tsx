@@ -21,7 +21,7 @@ import {
   Typography,
   usePalette,
 } from "@/constants/theme"
-import { useApp } from "@/lib/app-provider"
+import { useCreateExercise } from "../hooks/queries"
 import type { Exercise } from "@/types/domain"
 
 export function CreateExerciseForm({
@@ -29,7 +29,7 @@ export function CreateExerciseForm({
 }: {
   onCreated: (exercise: Exercise) => void
 }) {
-  const { services } = useApp()
+  const creation = useCreateExercise()
   const p = usePalette()
   const insets = useSafeAreaInsets()
   const [open, setOpen] = useState(false)
@@ -47,7 +47,7 @@ export function CreateExerciseForm({
     setBusy(true)
     setError("")
     try {
-      const exercise = await services.exercises.create({
+      const exercise = await creation.mutateAsync({
         name,
         trackingType: bodyweight ? "bodyweight" : "weighted",
       })

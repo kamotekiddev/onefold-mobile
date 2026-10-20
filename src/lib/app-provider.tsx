@@ -6,11 +6,13 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react"
+import { QueryClientProvider } from "@tanstack/react-query"
 
 import { createServices, type AuthenticatedRequest } from "@/lib/services"
 import { createAccountStore } from "@/lib/storage/app-store"
 import { clearWorkoutDrafts } from "@/features/workouts/hooks/use-drafts"
 import type { StoreSnapshot } from "@/types/domain"
+import { clearAccountQueries, createQueryClient } from "./query-client"
 
 type Store = ReturnType<typeof createAccountStore>
 type ServiceSet = ReturnType<typeof createServices>
@@ -30,6 +32,7 @@ export function AppProvider({
   request: AuthenticatedRequest
 }) {
   const [store] = useState(() => createAccountStore(accountKey))
+  const [queryClient] = useState(createQueryClient)
   const [services] = useState(() => createServices(store, { request }))
   const state = useSyncExternalStore(
     store.subscribe,
@@ -42,12 +45,13 @@ export function AppProvider({
     void store.hydrate()
     return () => {
       store.dispose()
+      clearAccountQueries(queryClient)
       clearWorkoutDrafts()
     }
-  }, [store])
+  }, [store, queryClient])
   return (
     <AppContext.Provider value={{ state, services, store }}>
-      {children}
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </AppContext.Provider>
   )
 }

@@ -1,8 +1,7 @@
 import { router } from "expo-router"
 import { SymbolView } from "expo-symbols"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -14,59 +13,26 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import {
-  AppText,
-  Button,
-  EmptyState,
-  ErrorMessage,
-  Screen,
-} from "@/components/ui"
+import { AppText, Button, EmptyState, Screen } from "@/components/ui"
 import { MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useRoutineDraft } from "@/features/routines"
 import { useApp } from "@/lib/app-provider"
-import type { Exercise, RoutineEntry } from "@/types/domain"
+import type { RoutineEntry } from "@/types/domain"
+import { useExercises } from "../hooks/queries"
 import { CreateExerciseForm } from "../components/create-exercise-form"
 
 let entryCounter = 0
 export function ExercisePickerScreen() {
-  const { services, state } = useApp()
+  const { state, services } = useApp()
   const { draft, setDraft } = useRoutineDraft()
   const p = usePalette()
   const [search, setSearch] = useState("")
   const [muscleGroup, setMuscleGroup] = useState("")
   const [selected, setSelected] = useState<string[]>([])
-  const [exercises, setExercises] = useState<Exercise[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [retry, setRetry] = useState(0)
-  useEffect(() => {
-    let alive = true
-    const delay = setTimeout(() => {
-      setLoading(true)
-      setError("")
-      services.exercises
-        .search({
-          search,
-          muscleGroup: muscleGroup || undefined,
-        })
-        .then((items) => {
-          if (alive) setExercises(items)
-        })
-        .catch((e) => {
-          if (alive)
-            setError(
-              e instanceof Error ? e.message : "Unable to load exercises."
-            )
-        })
-        .finally(() => {
-          if (alive) setLoading(false)
-        })
-    }, 180)
-    return () => {
-      alive = false
-      clearTimeout(delay)
-    }
-  }, [search, muscleGroup, services, retry])
+  const exercises = useExercises({
+    search,
+    muscleGroup: muscleGroup || undefined,
+  })
   if (!draft)
     return (
       <Screen
@@ -139,7 +105,7 @@ export function ExercisePickerScreen() {
       >
         <SafeAreaView edges={["top", "left", "right"]} style={styles.root}>
           <FlatList
-            data={loading || error ? [] : exercises}
+            data={exercises}
             keyExtractor={(item) => item.id}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.content}
@@ -230,61 +196,33 @@ export function ExercisePickerScreen() {
                 )}
                 <View style={styles.resultsHeader}>
                   <AppText variant="heading">Exercises</AppText>
-                  {!loading && !error ? (
-                    <AppText variant="caption" color={p.textSecondary}>
-                      {exercises.length} result
-                      {exercises.length === 1 ? "" : "s"}
-                    </AppText>
-                  ) : null}
+                  <AppText variant="caption" color={p.textSecondary}>
+                    {exercises.length} result
+                    {exercises.length === 1 ? "" : "s"}
+                  </AppText>
                 </View>
               </View>
             }
             ListEmptyComponent={
-              loading ? (
-                <View style={styles.loadingState}>
-                  <ActivityIndicator
-                    accessibilityLabel="Searching exercises"
-                    color={p.accent}
-                  />
-                  <AppText variant="caption" color={p.textSecondary}>
-                    Finding exercises…
-                  </AppText>
-                </View>
-              ) : error ? (
-                <View
-                  style={[
-                    styles.stateCard,
-                    { backgroundColor: p.surface, borderColor: p.border },
-                  ]}
-                >
-                  <ErrorMessage message={error} />
-                  <Button
-                    label="Retry search"
-                    onPress={() => setRetry((value) => value + 1)}
-                  />
-                </View>
-              ) : (
-                <View
-                  style={[
-                    styles.stateCard,
-                    { backgroundColor: p.surface, borderColor: p.border },
-                  ]}
-                >
-                  <AppText variant="heading">No matching exercises</AppText>
-                  <AppText variant="caption" color={p.textSecondary}>
-                    Try a different name or create a new exercise for your
-                    routine.
-                  </AppText>
-                  <CreateExerciseForm
-                    onCreated={(exercise) => {
-                      setSelected((current) => [...current, exercise.id])
-                      setSearch("")
-                      setMuscleGroup("")
-                      setRetry((value) => value + 1)
-                    }}
-                  />
-                </View>
-              )
+              <View
+                style={[
+                  styles.stateCard,
+                  { backgroundColor: p.surface, borderColor: p.border },
+                ]}
+              >
+                <AppText variant="heading">No matching exercises</AppText>
+                <AppText variant="caption" color={p.textSecondary}>
+                  Try a different name or create a new exercise for your
+                  routine.
+                </AppText>
+                <CreateExerciseForm
+                  onCreated={(exercise) => {
+                    setSelected((current) => [...current, exercise.id])
+                    setSearch("")
+                    setMuscleGroup("")
+                  }}
+                />
+              </View>
             }
             renderItem={({ item }) => {
               const isSelected = selected.includes(item.id)

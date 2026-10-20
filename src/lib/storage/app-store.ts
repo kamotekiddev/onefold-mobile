@@ -35,7 +35,13 @@ function parseStored(raw: string): AppData {
     data.schemaVersion = 3
     data.routineCache = null
   }
-  if (!data.routineCache || typeof data.routineCache !== "object")
+  if (
+    !data.routineCache ||
+    typeof data.routineCache !== "object" ||
+    data.routineCache.source !== "backend" ||
+    !Number.isFinite(data.routineCache.fetchedAt) ||
+    data.routineCache.fetchedAt < 0
+  )
     data.routineCache = null
   data.routines = data.routines.map((routine) => ({
     ...routine,
