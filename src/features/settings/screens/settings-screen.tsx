@@ -15,6 +15,7 @@ import { MaxContentWidth, Radii } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
 import { routineKeys } from "@/features/routines"
 import { useAuth } from "@/features/auth"
+import { exerciseKeys } from "@/features/exercises"
 
 export function SettingsScreen() {
   const { state, services } = useApp()
@@ -164,6 +165,7 @@ export function SettingsScreen() {
                   void run(async () => {
                     await queryClient.cancelQueries()
                     await services.demo.reset()
+                    queryClient.removeQueries({ queryKey: exerciseKeys.all })
                     queryClient.setQueryData(routineKeys.all, [], {
                       updatedAt: 0,
                     })

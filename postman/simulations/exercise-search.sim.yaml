@@ -1,0 +1,5 @@
+simulation: exercise-search
+routing: path
+mocks:
+  - routeKey: exercise-api
+    path: ../mocks/exercise-search/default.js

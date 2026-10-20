@@ -24,54 +24,22 @@ import {
 import { useCreateExercise } from "../hooks/queries"
 import type { Exercise } from "@/types/domain"
 
-export function CreateExerciseForm({
-  onCreated,
+export function CreateExerciseTrigger({
+  onPress,
+  open,
 }: {
-  onCreated: (exercise: Exercise) => void
+  onPress: () => void
+  open: boolean
 }) {
-  const creation = useCreateExercise()
   const p = usePalette()
-  const insets = useSafeAreaInsets()
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState("")
-  const [bodyweight, setBodyweight] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState("")
-  const saving = useRef(false)
-  const close = () => {
-    if (!saving.current) setOpen(false)
-  }
-  const create = async () => {
-    if (saving.current) return
-    saving.current = true
-    setBusy(true)
-    setError("")
-    try {
-      const exercise = await creation.mutateAsync({
-        name,
-        trackingType: bodyweight ? "bodyweight" : "weighted",
-      })
-      onCreated(exercise)
-      setName("")
-      setOpen(false)
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Unable to create exercise."
-      )
-    } finally {
-      saving.current = false
-      setBusy(false)
-    }
-  }
-  const trigger = (
+  return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Add new exercise"
       accessibilityState={{ expanded: open }}
       onPress={() => {
         Keyboard.dismiss()
-        setError("")
-        setOpen(true)
+        onPress()
       }}
       style={({ pressed }) => [
         styles.openAction,
@@ -96,6 +64,53 @@ export function CreateExerciseForm({
       </View>
     </Pressable>
   )
+}
+
+export function CreateExerciseForm({
+  onCreated,
+  open,
+  onClose,
+}: {
+  onCreated: (exercise: Exercise) => void
+  open: boolean
+  onClose: () => void
+}) {
+  const creation = useCreateExercise()
+  const p = usePalette()
+  const insets = useSafeAreaInsets()
+  const [name, setName] = useState("")
+  const [bodyweight, setBodyweight] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+  const saving = useRef(false)
+  const close = () => {
+    if (!saving.current) {
+      setError("")
+      onClose()
+    }
+  }
+  const create = async () => {
+    if (saving.current) return
+    saving.current = true
+    setBusy(true)
+    setError("")
+    try {
+      const exercise = await creation.mutateAsync({
+        name,
+        trackingType: bodyweight ? "bodyweight" : "weighted",
+      })
+      onCreated(exercise)
+      setName("")
+      onClose()
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Unable to create exercise."
+      )
+    } finally {
+      saving.current = false
+      setBusy(false)
+    }
+  }
   const form = (
     <Card style={styles.form}>
       <View style={styles.copy}>
@@ -240,49 +255,46 @@ export function CreateExerciseForm({
     </Card>
   )
   return (
-    <>
-      {trigger}
-      <Modal
-        transparent
-        visible={open}
-        onRequestClose={close}
-        supportedOrientations={["portrait", "landscape"]}
-      >
-        <View style={styles.modal}>
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: Colors.light.text, opacity: 0.5 },
+    <Modal
+      transparent
+      visible={open}
+      onRequestClose={close}
+      supportedOrientations={["portrait", "landscape"]}
+    >
+      <View style={styles.modal}>
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: Colors.light.text, opacity: 0.5 },
+          ]}
+        />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modal}
+        >
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[
+              styles.modalContent,
+              {
+                paddingTop: insets.top + Spacing.three,
+                paddingBottom: insets.bottom + Spacing.three,
+                paddingLeft: insets.left + Spacing.three,
+                paddingRight: insets.right + Spacing.three,
+              },
             ]}
-          />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={styles.modal}
           >
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={[
-                styles.modalContent,
-                {
-                  paddingTop: insets.top + Spacing.three,
-                  paddingBottom: insets.bottom + Spacing.three,
-                  paddingLeft: insets.left + Spacing.three,
-                  paddingRight: insets.right + Spacing.three,
-                },
-              ]}
+            <View
+              accessibilityViewIsModal
+              onAccessibilityEscape={close}
+              style={styles.dialog}
             >
-              <View
-                accessibilityViewIsModal
-                onAccessibilityEscape={close}
-                style={styles.dialog}
-              >
-                {form}
-              </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
-    </>
+              {form}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   )
 }
 

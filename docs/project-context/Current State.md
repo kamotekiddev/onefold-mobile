@@ -20,6 +20,7 @@ The user requested an Obsidian project memory so future assistant sessions can r
 - Backend workout templates now use account-scoped TanStack Query (five-minute stale time) with durable SQLite offline snapshots; the production account seed no longer creates a default routine.
 - Routine creation is available through the toolbar or the empty state's Create routine action; the toolbar action is hidden while the empty state is shown. Saving creates a backend template and immediately expires the list cache. The picker can create weighted/bodyweight exercises through the API, enabling first-routine creation on empty accounts.
 - Existing runtime service names still include “mock” and “demo”; these do not imply that native authentication is mocked.
+- Exercise picker name searches now use the paginated backend endpoint with 300 ms debounce, Load more, durable discovered exercises, and offline known-exercise fallback. Unknown metadata keeps the user-approved Weighted/General/Unknown defaults; remote muscle-group filters are hidden.
 - Obsidian vault settings in `.obsidian/` are now tracked with the repository.
 
 See [[Project Overview]], [[Architecture]], and [[Decisions]].
@@ -36,7 +37,7 @@ These are observed gaps or questions, not an approved backlog:
 - No EAS build configuration file was present; confirm actual profiles before scheduling a build.
 - Backend deployment, runtime API availability, native device flows, and release readiness were not verified in this documentation task.
 - The live OpenAPI document was read successfully outside the sandbox during the creation fix. The earlier sandbox-only connection failure did not establish that the API was unavailable. Response DTOs and validation were checked against adjacent backend source.
-- There is no exercise-list endpoint; the picker offers known exercises and Add new exercise. Remote routine editing, deletion, and duplication remain unavailable. Template detail responses omit per-exercise rest, weight increments, and exercise type; see [[Decisions#D010 — Allow backend routine creation independently of other mutations]].
+- Exercise search requires a nonblank name and returns only ID/name, so blank input lists known exercises and newly discovered types use defaults. Remote routine editing, deletion, and duplication remain unavailable. Template detail responses omit per-exercise rest, weight increments, and exercise type; see [[Decisions#D010 — Allow backend routine creation independently of other mutations]] and [[Decisions#D015 — Search the backend exercise catalog by name]].
 
 ## Recent history worth knowing
 
@@ -64,7 +65,7 @@ These are observed gaps or questions, not an approved backlog:
 
 ## Next-session handoff
 
-Latest implementation (2026-10-20): [[Data Fetching Handoff]] has been executed on `codex/data-fetching-modernization`, based on refreshed `origin/main` at `4b19e8a`. See [[#Data fetching modernization — 2026-10-20]] for verification and remaining device acceptance. The user subsequently requested commit/push/PR delivery through the commit-push-pr skill; unrelated Obsidian settings edits are excluded from that delivery.
+Latest implementation (2026-10-20): exercise endpoint integration is on `codex/exercise-search`, based on refreshed `origin/main` at `b07045b` after modernization PR #19 merged. See [[#Exercise search integration — 2026-10-20]]. No commit/push/PR was requested for this task; unrelated Obsidian settings edits remain preserved. The earlier [[Data Fetching Handoff]] implementation and its device acceptance are recorded below.
 
 The original handoff was research only; its checks are historical. The implementation verification is recorded below.
 
@@ -136,3 +137,13 @@ Read [[Start Here]] and check current changes before starting new work. Update t
 - User requested commit, push, and PR for the modernization. Confirmed the same-task branch has no existing PR and matches refreshed `origin/main` before delivery.
 - Re-ran `npx expo lint`, `npx tsc --noEmit`, and `npm test` (64 passed); all passed. The successful iOS production export and known Expo Doctor findings from implementation remain the latest checks for those areas.
 - Delivery includes modernization source/tests, dependency manifests, conventions, and context notes. Unrelated `.obsidian/app.json`, `.obsidian/graph.json`, and `.obsidian/workspace.json` changes remain unstaged. Device acceptance and the previously recorded tooling/Expo patch limits remain unfinished.
+
+## Exercise search integration — 2026-10-20
+
+- Implemented the user-approved plan on `codex/exercise-search`, after verifying modernization PR #19 merged and creating the new branch from refreshed `origin/main` at `b07045b`. Existing Obsidian settings edits are preserved; no commits or pushes.
+- Added typed `ExerciseService.searchPage`, strict boundary validation, authenticated transport/cancellation, and persist-before-success catalog merging. Latest known tracking/muscle/equipment metadata survives reads; new records use the user-selected Weighted/General/Unknown defaults. The backend validator requires a trimmed 1–255-character name despite the OpenAPI parameter being optional.
+- Account-scoped infinite queries share reads with existing freshness/retry/lifecycle policies. The picker debounces names by 300 ms, loads 20-item pages, deduplicates IDs, preserves selections, exposes loaded/total counts and Load more, and handles pending/error/retry/offline states. Blank input and offline searches use the known catalog; no complete pages/totals are hydrated from partial local data. Remote muscle-group filters are hidden.
+- Creation invalidates searches; the no-results trigger is separate from the always-mounted modal so refreshes preserve entered values and save errors. Reset clears search queries and fences old reads. Local/demo search and ID lookup remain compatible; no dependency, route, native configuration, or schema changes. See [[Architecture]] and [[Decisions#D015 — Search the backend exercise catalog by name]].
+- Verification: `npx expo lint` (no warnings), `npx tsc --noEmit`, `git diff --check`, and iOS Metro production export passed. Complete `npm test` run with the local HTTP simulation enabled: **78 passed**, no skips/failures. The ordinary suite skips only the opt-in HTTP test when no simulation URL is provided.
+- Added a reproducible contract-based Postman simulation and instructions in `postman/README.md`. Actual transport/adapter calls and simulation request logs confirm two paginated 200 responses plus 400/401 handling. The CLI was signed out, so owner-mock discovery was skipped. This uses synthetic data and does not verify production auth/account visibility.
+- Remaining acceptance: actual iOS/Android keyboard/large-text/dark-mode review, rapid typing and selection across pages, creation failure during refresh, offline/reconnect/account-switch flows, and authenticated search/routine saving against the running backend. Successful bundling and service/query tests do not establish native visual results. The API cannot establish the true tracking type of a newly discovered bodyweight exercise.

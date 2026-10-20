@@ -1,6 +1,11 @@
 import type { AuthenticatedRequest, DataStore, Services } from "../services"
 import { createTemplateCreator } from "./create-template"
 import { createExerciseCreator } from "./create-exercise"
+import {
+  createExerciseSearcher,
+  normalizeExerciseSearch,
+} from "./exercise-search"
+import { throwIfCancelled } from "../api-client"
 import type {
   AppData,
   Routine,
@@ -77,6 +82,10 @@ export function createServices(
   const now = options.now ?? Date.now
   let failOperation: string | null = null
   let routineRevision = 0
+  let exerciseRevision = 0
+  const searchRemoteExercises = options.request
+    ? createExerciseSearcher(store, options.request, () => exerciseRevision)
+    : null
   const remoteRoutines = options.request
     ? createRemoteRoutineLoader(
         store,
@@ -106,6 +115,22 @@ export function createServices(
   }
   const services: Services = {
     exercises: {
+      async searchPage(input, readOptions) {
+        if (searchRemoteExercises)
+          return searchRemoteExercises(input, readOptions)
+        const query = normalizeExerciseSearch(input)
+        const items = await services.exercises.search({ search: query.name })
+        throwIfCancelled(readOptions?.signal)
+        return {
+          items: items.slice(
+            (query.page - 1) * query.pageSize,
+            query.page * query.pageSize
+          ),
+          page: query.page,
+          pageSize: query.pageSize,
+          totalCount: items.length,
+        }
+      },
       async create(input) {
         if (createRemoteExercise) return createRemoteExercise(input)
         return store.mutate((data) => {
@@ -589,6 +614,7 @@ export function createServices(
     demo: {
       async reset() {
         routineRevision++
+        exerciseRevision++
         await before("demo.reset")
         await store.mutate((data) => {
           Object.assign(

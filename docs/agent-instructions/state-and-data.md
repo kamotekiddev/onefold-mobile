@@ -18,7 +18,7 @@ Use these rules for data fetching, local state, storage, and app services.
 - Forward query AbortSignal through services and transport. Cancellation and session-refresh failures must not be retried by Query.
 - Use creation mutation hooks with `networkMode: "always"`, `retry: false`, and an online check at execution. Reject offline submissions immediately; do not queue or replay POSTs.
 - Persist normalized remote results before publishing query success. Hydrate from the SQLite snapshot with its original fetch timestamp; retain content and surface refresh/storage errors.
-- Keep local workout data, history, preferences, and exercise filtering on reactive store reads. Query cache eviction must never remove durable workout inputs.
+- Keep local workout data, history, preferences, and known-exercise filtering on reactive store reads. Remote exercise searches use account-scoped paginated Query state; persist discovered exercises before success without treating the local catalog as a complete search response. Query cache eviction must never remove durable workout inputs.
 - Put app-wide API clients and adapters in `src/lib`.
 - Validate or normalize external data at the boundary before it reaches UI code.
 - Model loading, empty, success, and error states explicitly.
