@@ -18,12 +18,14 @@ Use these rules when working in the repository.
 
 ## Branches And PRs
 
-- When the user asks to implement a plan, check the current branch before making implementation edits.
-- If the checkout is on the repository's default branch, `main`, `master`, or a detached HEAD, create and switch to a descriptive `codex/<task-name>` branch automatically. The implementation request authorizes this step; do not ask for confirmation.
-- If the user has already checked out a feature branch, continue on that branch unless they explicitly request another branch.
-- Preserve all existing staged, unstaged, and untracked changes when branching. Never reset or discard changes to create a branch.
+- Before editing for any implementation request, inspect the current branch, worktree status, diff, and branch history. Determine whether this is a continuation of the same task or a new task; do not infer task relevance merely because a feature branch is already checked out.
+- Each new task needs a descriptive `codex/<task-name>` branch. Automatically create and switch to it if the current branch is unrelated, already merged, associated with a closed PR, the default branch, or a detached HEAD. The implementation request authorizes this step; do not ask for confirmation.
+- Reuse an existing feature branch only when the conversation establishes that it is the same ongoing task and the branch is still active, or when the user explicitly requests that branch. Follow-up corrections and refinements to the same task stay together. For example, an exercise-creation redesign must not reuse a retry-screen branch simply because it is checked out.
+- Before creating a branch, refresh the remote default branch and check whether the existing branch has merged; inspect PR status when needed to establish whether it is still active. Base the new branch on the current remote default branch, not on unrelated feature commits. If remote verification is unavailable, state that limitation rather than assuming the branch is active or the base is current.
+- Preserve all existing staged, unstaged, and untracked changes when branching. Inspect which edits belong to the task, retain unrelated work safely, and verify preservation after switching. Never reset, discard, or automatically commit changes to make a branch switch succeed.
+- Verify the branch switch succeeded with `git branch --show-current` before making implementation edits. If the switch fails, resolve the failure before editing; do not continue on the old branch.
 - Follow an explicit user instruction to use a particular branch or stay on the current branch.
-- For other tasks, do not create or switch branches unless the user asks.
+- For read-only questions or reviews, do not create or switch branches unless the user asks.
 - For PR summaries, include what changed, how it was verified, and any known risks.
 - Mention skipped checks and why they were skipped.
 

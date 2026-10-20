@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-19
+updated: 2026-10-20
 tags: [onefold, handoff]
 ---
 
@@ -18,7 +18,7 @@ The user requested an Obsidian project memory so future assistant sessions can r
 - Offline-local auth state now shows a dismissible floating retry notice above the bottom navigation; dismissal lasts for the current offline episode and retry behavior is unchanged.
 - Routine scheduling, exercise selection/reordering, guided workouts, full-screen rest, completion summaries, history, and unit preferences.
 - Backend workout templates are fetched as authenticated routines and cached per account for 24 hours; the production account seed no longer creates a default routine.
-- New Routine is restored in the toolbar and empty state. Saving creates a backend template and immediately expires the list cache. The picker can create weighted/bodyweight exercises through the API, enabling first-routine creation on empty accounts.
+- Routine creation is available through the toolbar or the empty state's Create routine action; the toolbar action is hidden while the empty state is shown. Saving creates a backend template and immediately expires the list cache. The picker can create weighted/bodyweight exercises through the API, enabling first-routine creation on empty accounts.
 - Existing runtime service names still include “mock” and “demo”; these do not imply that native authentication is mocked.
 - Obsidian vault settings in `.obsidian/` are now tracked with the repository.
 
@@ -87,3 +87,26 @@ Read [[Start Here]] and check current changes before starting new work. Update t
 - Continuing the same storage-recovery work on `codex/retry-screen-design` / PR #15. A read-only structural check confirmed the simulator snapshot uses schema 3; required arrays and unit preference pass validation. The branch's older schema-2-only reader caused the reported exception, rather than exercise seeding.
 - PR #14 has merged into `main` at `7465038`. Merging that code into the open retry-screen branch restores its schema-2/3 reader and backend-routine integration while retaining the redesigned recovery screen and requested debugging behavior. The only merge conflict was in decision notes; both sets of decisions were retained.
 - No reset, database mutation, or schema downgrade was performed during diagnosis. No snapshot contents or account identifiers were copied to project notes.
+
+## Add new exercise design — 2026-10-20
+
+- Continuing on the existing `codex/retry-screen-design` feature branch, redesigned `src/features/exercises/components/create-exercise-form.tsx` with the local design system. The entry row expands into a bordered Card with a labeled name field, explicit Weighted/Bodyweight radio choices, error treatment, and wrapping cancel/create actions. See [[Architecture#Exercise creation presentation]] and [[Decisions#D013 — Align inline exercise creation with the routine builder]].
+- Preserved creation requests and picker selection. Inputs and actions lock while saving, with visible loading feedback. No dependencies, routes, or native configuration changes; unrelated Obsidian changes were preserved.
+- `npx expo lint`, `npx tsc --noEmit`, `npm test` (46 tests), and `git diff --check`: passed. No new tests for this presentation change.
+- Visual QA remains unfinished: the iOS simulator is running, but Orca Computer Use reports missing macOS Accessibility permission. Review the collapsed/expanded form, dark mode, large text, and keyboard layout on-device; authenticated writes were not exercised.
+
+### Pop-up follow-up — 2026-10-20
+
+- At the user's request, replaced the inline expansion with a centered React Native Modal over a dimmed backdrop, retaining the form styling and creation flow. The pop-up includes safe-area spacing, keyboard avoidance, scrolling for compact screens/large text, and guarded Cancel/Android Back/accessibility escape dismissal. Successful creation closes it automatically.
+- `npx expo lint`, `npx tsc --noEmit`, and `git diff --check`: passed. The 46-test suite passed before this presentation follow-up; no service logic changed. On-device visual review remains pending due to the previously observed Accessibility permission limit.
+
+## Routine creation action — 2026-10-20
+
+- At the user's request, `RoutineListScreen` now hides toolbar New Routine when the loaded empty state shows Create routine. Populated, loading, and error states retain toolbar access. See [[Decisions#D010 — Allow backend routine creation independently of other mutations]].
+- `npx expo lint`, `npx tsc --noEmit`, and `git diff --check`: passed. No new tests for this conditional presentation change; device visual review remains pending.
+
+## Branch correction and workflow rules — 2026-10-20
+
+- Moved the uncommitted exercise/routine UI work onto `codex/exercise-creation-ui`, created from `origin/main` at `6b8f2c6` (the merged retry-screen PR). All existing tracked/untracked edits were preserved; no commits were created. Earlier entries describing work on the retry-screen branch are historical.
+- At the user's explicit request, updated `AGENTS.md` and the linked Git workflow to require task relevance, active branch/PR status, a refreshed remote default base for new tasks, and verification of a successful switch before editing. This supersedes automatic reuse of any existing feature branch. Same-task follow-ups stay together; explicit user branch choices take precedence. See [[Decisions#D007 — Feature branches and standardized PR titles]].
+- Delivery verification: `npx expo lint`, `npx tsc --noEmit`, and `npm test` (46 tests) passed again with the final UI and rule changes. Simulator visual review remains pending; unrelated `.obsidian/` settings/plugins and `.obsidianignore` are excluded from delivery.

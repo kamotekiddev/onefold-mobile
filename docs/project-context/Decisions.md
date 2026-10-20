@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-19
+updated: 2026-10-20
 tags: [onefold, decisions]
 ---
 
@@ -69,9 +69,11 @@ Check the installed Expo major and matching docs before API changes. Use Expo's 
 
 ## D007 — Feature branches and standardized PR titles
 
-**Status:** Established repository policy; commits `e3296f6` and `82accce`.
+**Status:** Established repository policy; commits `e3296f6` and `82accce`, with a user-requested branch-relevance correction on 2026-10-20.
 
-Before implementation, inspect the current branch; create a descriptive `codex/<task-name>` branch if on the default branch or detached HEAD. Continue an existing feature branch unless instructed otherwise. Preserve existing changes and commit only when asked.
+Before implementation edits, verify task relevance and branch/PR status. Create a descriptive `codex/<task-name>` branch from the refreshed remote default branch for new work when the current branch is unrelated, merged, closed, the default branch, or detached. Reuse only for the same ongoing task or explicit user direction, and verify the switch succeeded before editing. Preserve existing changes and commit only when asked.
+
+**Superseded:** The earlier rule to continue any checked-out feature branch unless instructed otherwise. The user reported repeated unrelated-branch reuse and explicitly requested updating the rules; an existing branch alone does not establish task relevance.
 
 PR titles start with a lowercase bracketed type, followed by an exact known issue identifier if available, then the description. Do not invent a ticket number or use the PR number as the ticket.
 
@@ -111,6 +113,8 @@ Fetch authenticated workout templates from `GET /api/workout/Template` and `GET 
 
 Show New Routine on the list and Create routine in the empty state. Save with authenticated `POST /api/workout/Template`, retrieve the saved template's server IDs, and expire the collection cache immediately. A retry after a successful POST and failed detail fetch reuses the saved template ID within the account session.
 
+**Presentation refinement (2026-10-20, user-requested):** Hide the toolbar's New Routine action when the loaded empty state shows Create routine, superseding the initial duplicate-action presentation. Keep the toolbar action available for populated, loading, and error states. Evidence: [routine list](../../src/features/routines/screens/routines.tsx).
+
 The current API provides exercise creation and lookup by ID but no exercise listing. The picker therefore offers Add new exercise using `POST /api/workout/Exercise` and retains known server exercises locally, including unused exercises created while drafting. Fresh accounts and account resets use no seeded exercises or routines. The remote picker excludes legacy seed IDs.
 
 **Contract limits:** Remote creation uses one target rep count, no starting load, and manual or weight progression. Template-level rest defaults to two minutes. The detail DTO still omits per-exercise rest, weight increments, and exercise type; reads keep their documented defaults, while locally known exercise types are retained. Editing, deletion, and duplication remain unavailable.
@@ -126,3 +130,13 @@ Use one app-level recovery component for training-data and session-loading error
 **Rationale:** Startup errors occur before feature navigation mounts; a shared safe-area-aware presentation makes these states consistent with the rest of the app without changing data recovery policy.
 
 **Source:** [Recovery component](../../src/components/app-recovery-screen.tsx), [root layout](../../src/app/_layout.tsx).
+
+## D013 — Align inline exercise creation with the routine builder
+
+**Status:** Implemented locally on 2026-10-20 following the user's request to match Add new exercise to the design system. The initial inline presentation was superseded by the user's same-day request for a pop-up; visual review remains pending.
+
+Open creation in a centered, safe-area-aware and keyboard-avoiding Modal above the picker, using existing theme tokens and the shared Card/text/error primitives. Present Weighted and Bodyweight as explicit, descriptive radio choices instead of a switch-to button. Use 48-point minimum controls, wrapping actions, and a visible saving state with editing and dismissal disabled during the request.
+
+**Rationale:** Make the current tracking choice visible and match the surrounding routine-builder controls while retaining the existing backend creation and selection flow.
+
+**Source:** [Exercise creation form](../../src/features/exercises/components/create-exercise-form.tsx), [[Architecture#Exercise creation presentation]].

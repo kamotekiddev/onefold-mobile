@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-19
+updated: 2026-10-20
 tags: [onefold, architecture]
 ---
 
@@ -82,3 +82,7 @@ Read-only inspection later established a version mismatch: the saved snapshot us
 ## Startup recovery presentation
 
 [AppRecoveryScreen](../../src/components/app-recovery-screen.tsx) supplies a shared app-level recovery layout for training-store errors, session-storage errors, and unavailable authentication. It uses the existing palette, typography, Card, ErrorMessage, system symbols, and rounded 48-point Pressable controls. A compact Onefold heading sits above a centered, width-limited card; error details remain visible. The layout scrolls and includes all safe-area edges. The [root layout](../../src/app/_layout.tsx) still owns retry and session-clearing behavior; this presentation change adds no reset or migration. Light/dark rendering and large-text behavior still need visual verification; the diagnostic overlay obscured the simulator and GUI control lacked Accessibility permission.
+
+## Exercise creation presentation
+
+The picker's [CreateExerciseForm](../../src/features/exercises/components/create-exercise-form.tsx) opens a centered React Native Modal from the outlined Add new exercise row. The pop-up uses a dimmed backdrop and shared Card with a labeled name input, descriptive Weighted/Bodyweight radio choices, inline errors, and rounded cancel/create actions. It is width-limited, safe-area-aware, scrollable, and keyboard-avoiding. Cancel, Android Back, and accessibility escape dismiss it unless saving; success closes it automatically. Presentation uses the existing palette, spacing, typography, and radii; controls have 48-point minimum touch targets and wrap rather than fixed heights. Saving locks inputs/actions and shows progress; the existing creation service and automatic picker selection remain unchanged. No dependencies or routes were added. Simulator visual review, including dark mode, keyboard, and large text, remains pending because GUI control lacks macOS Accessibility permission.

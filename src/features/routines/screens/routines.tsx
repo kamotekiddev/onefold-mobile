@@ -33,6 +33,7 @@ export function RoutineListScreen() {
   const [routines, setRoutines] = useState<Routine[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const showEmptyState = !loading && !error && routines.length === 0
   const exerciseNames = useMemo(
     () =>
       new Map(
@@ -188,29 +189,31 @@ export function RoutineListScreen() {
           >
             A little structure. A stronger you.
           </AppText>
-          <Pressable
-            accessibilityLabel="New Routine"
-            accessibilityRole="button"
-            onPress={() => router.push("/routines/edit")}
-            style={styles.newRoutineHitArea}
-          >
-            {({ pressed }) => (
-              <View
-                style={[
-                  styles.newRoutineButton,
-                  { backgroundColor: p.accent, opacity: pressed ? 0.8 : 1 },
-                ]}
-              >
-                <AppText
-                  variant="caption"
-                  color={p.accentText}
-                  style={styles.newRoutineLabel}
+          {!showEmptyState ? (
+            <Pressable
+              accessibilityLabel="New Routine"
+              accessibilityRole="button"
+              onPress={() => router.push("/routines/edit")}
+              style={styles.newRoutineHitArea}
+            >
+              {({ pressed }) => (
+                <View
+                  style={[
+                    styles.newRoutineButton,
+                    { backgroundColor: p.accent, opacity: pressed ? 0.8 : 1 },
+                  ]}
                 >
-                  New Routine
-                </AppText>
-              </View>
-            )}
-          </Pressable>
+                  <AppText
+                    variant="caption"
+                    color={p.accentText}
+                    style={styles.newRoutineLabel}
+                  >
+                    New Routine
+                  </AppText>
+                </View>
+              )}
+            </Pressable>
+          ) : null}
         </View>
 
         {loading ? (
