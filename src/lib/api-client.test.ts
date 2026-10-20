@@ -22,7 +22,7 @@ test("requests time out after 15 seconds and normalize transport cancellation", 
   cancelled.abort()
   await assert.rejects(
     client.request("/test", { signal: cancelled.signal }),
-    /cancelled/
+    (error: unknown) => error instanceof ApiError && error.kind === "cancelled"
   )
 })
 
@@ -45,6 +45,6 @@ test("malformed successful responses and empty unauthorized bodies are normalize
     (error: unknown) =>
       error instanceof ApiError &&
       error.status === 401 &&
-      /email or password/.test(error.message)
+      /authorized/.test(error.message)
   )
 })

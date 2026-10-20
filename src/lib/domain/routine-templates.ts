@@ -7,7 +7,7 @@ import type {
 } from "../../types/domain"
 import { ServiceError } from "./validation"
 
-export const ROUTINE_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+import { ApiError, throwIfCancelled } from "../api-client"
 
 type JsonObject = Record<string, unknown>
 
@@ -197,78 +197,84 @@ export function mapTemplate(
   }
 }
 
+// Summaries lack prescriptions, so the collection still needs details. Limit fanout
+// on mobile connections; Query owns sharing and freshness above this adapter.
 export function createRemoteRoutineLoader(
   store: DataStore,
   request: AuthenticatedRequest,
-  now: () => number = Date.now
+  now: () => number = Date.now,
+  readRevision: () => number = () => 0
 ) {
-  let fetchTask: Promise<Routine[]> | null = null
-
-  const load = async (): Promise<Routine[]> => {
+  const load = async (
+    options: { signal?: AbortSignal } = {}
+  ): Promise<Routine[]> => {
+    const revision = readRevision()
+    const check = () => {
+      throwIfCancelled(options.signal)
+      if (revision !== readRevision())
+        throw new ApiError("cancelled", "Routine data changed during refresh.")
+    }
+    check()
     const current = await store.read()
-    const cache = current.routineCache
-    if (cache && now() - cache.fetchedAt < ROUTINE_CACHE_TTL_MS)
-      return current.routines
-    if (fetchTask) return fetchTask
-
-    fetchTask = (async () => {
-      try {
-        const rawSummaries = await request("/api/workout/Template")
-        if (!Array.isArray(rawSummaries))
-          throw new ServiceError(
-            "INVALID_RESPONSE",
-            "Invalid templates response."
+    const rawSummaries = await request("/api/workout/Template", options)
+    check()
+    if (!Array.isArray(rawSummaries))
+      throw new ServiceError("INVALID_RESPONSE", "Invalid templates response.")
+    const summaries = rawSummaries.map((item) => object(item, "template"))
+    const mapped: ReturnType<typeof mapTemplate>[] = []
+    let index = 0
+    await Promise.all(
+      Array.from({ length: Math.min(4, summaries.length) }, async () => {
+        while (index < summaries.length) {
+          check()
+          const position = index++
+          const summary = summaries[position]
+          const id = stringValue(summary, "template id", "id", "Id")
+          const rawDetail = await request(
+            `/api/workout/Template/${encodeURIComponent(id)}`,
+            options
           )
-        const summaries = rawSummaries.map((item) => object(item, "template"))
-        const mapped = await Promise.all(
-          summaries.map(async (summary) => {
-            const id = stringValue(summary, "template id", "id", "Id")
-            const rawDetail = await request(`/api/workout/Template/${id}`)
-            return mapTemplate(
-              summary,
-              object(rawDetail, "template detail"),
-              now(),
-              current.exercises
-            )
-          })
-        )
-        const routines = mapped.map((item) => item.routine)
-        const exercises = [
-          ...new Map(
-            mapped
-              .flatMap((item) => item.exercises)
-              .map((exercise) => [exercise.id, exercise] as const)
-          ).values(),
-        ]
-        await store.mutate((data) => {
-          data.routines = routines
-          data.exercises = [
-            ...new Map(
-              [...data.exercises, ...exercises].map((exercise) => [
-                exercise.id,
-                exercise,
-              ])
-            ).values(),
-          ]
-          data.routineCache = { source: "backend", fetchedAt: now() }
-        })
-        return routines
-      } catch (error) {
-        if (current.routineCache) return current.routines
-        throw error
-      } finally {
-        fetchTask = null
-      }
-    })()
-    return fetchTask
+          check()
+          mapped[position] = mapTemplate(
+            summary,
+            object(rawDetail, "template detail"),
+            now(),
+            current.exercises
+          )
+        }
+      })
+    )
+    check()
+    const routines = mapped.map((item) => item.routine)
+    await store.mutate((data) => {
+      check()
+      data.routines = routines
+      // Prefer the latest local tracking type if an exercise was created during this read.
+      const exercises = mapped
+        .flatMap((item) => item.exercises)
+        .map((exercise) => ({
+          ...exercise,
+          trackingType:
+            data.exercises.find((item) => item.id === exercise.id)
+              ?.trackingType ?? exercise.trackingType,
+        }))
+      data.exercises = [
+        ...new Map(
+          [...data.exercises, ...exercises].map((exercise) => [
+            exercise.id,
+            exercise,
+          ])
+        ).values(),
+      ]
+      data.routineCache = { source: "backend", fetchedAt: now() }
+    })
+    check()
+    return routines
   }
-
   return {
-    async list() {
-      return load()
-    },
-    async getById(id: string) {
-      const routines = await load()
+    list: load,
+    async getById(id: string, options?: { signal?: AbortSignal }) {
+      const routines = await load(options)
       const routine = routines.find((item) => item.id === id)
       if (!routine)
         throw new ServiceError("NOT_FOUND", "Routine was not found.")

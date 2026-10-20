@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query"
 import { Host, Picker } from "@expo/ui"
 import { ScrollView, StyleSheet, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -12,10 +13,12 @@ import {
 } from "@/components/ui"
 import { MaxContentWidth, Radii } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
+import { routineKeys } from "@/features/routines"
 import { useAuth } from "@/features/auth"
 
 export function SettingsScreen() {
   const { state, services } = useApp()
+  const queryClient = useQueryClient()
   const auth = useAuth()
   const p = usePalette()
   const [busy, setBusy] = useState(false)
@@ -159,7 +162,14 @@ export function SettingsScreen() {
                 loading={busy}
                 onPress={() =>
                   void run(async () => {
+                    await queryClient.cancelQueries()
                     await services.demo.reset()
+                    queryClient.setQueryData(routineKeys.all, [], {
+                      updatedAt: 0,
+                    })
+                    void queryClient.invalidateQueries({
+                      queryKey: routineKeys.all,
+                    })
                     setConfirmReset(false)
                     setMessage("Local training data reset for this account.")
                   })

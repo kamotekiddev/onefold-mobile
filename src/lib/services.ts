@@ -22,8 +22,8 @@ export interface ExerciseService {
 }
 export interface RoutineService {
   readonly readOnly: boolean
-  list(): Promise<Routine[]>
-  getById(id: string): Promise<Routine>
+  list(options?: { signal?: AbortSignal }): Promise<Routine[]>
+  getById(id: string, options?: { signal?: AbortSignal }): Promise<Routine>
   create(input: RoutineInput): Promise<Routine>
   update(
     id: string,

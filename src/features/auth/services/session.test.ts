@@ -355,3 +355,94 @@ test("saved sessions cannot cross API environments and rejected refresh clears c
   assert.equal(first.getSnapshot().status, "signed-out")
   assert.equal(saved.get(), null)
 })
+
+test("cancelling a caller during shared refresh prevents its protected request", async () => {
+  const saved = memoryStorage()
+  let now = 0
+  let finishRefresh!: (response: Response) => void
+  let refreshing!: () => void
+  const started = new Promise<void>((resolve) => {
+    refreshing = resolve
+  })
+  let protectedCalls = 0
+  const manager = createSessionManager(
+    "https://api.example",
+    saved.storage,
+    (async (url) => {
+      if (String(url).endsWith("/api/Auth/sign-in"))
+        return json(pair("user-a", 200))
+      if (String(url).endsWith("/api/Auth/refresh")) {
+        refreshing()
+        return new Promise<Response>((resolve) => {
+          finishRefresh = resolve
+        })
+      }
+      protectedCalls++
+      return json({ ok: true })
+    }) as typeof fetch,
+    () => now
+  )
+  await manager.signIn("user-a@example.com", "password")
+  now = 200_000
+  const controller = new AbortController()
+  const cancelled = manager.request("/protected", { signal: controller.signal })
+  const rejection = assert.rejects(cancelled, { kind: "cancelled" })
+  await started
+  const other = manager.request("/protected")
+  controller.abort()
+  finishRefresh(json(pair("user-a", 400)))
+  await rejection
+  assert.deepEqual(await other, { ok: true })
+  assert.equal(protectedCalls, 1)
+})
+
+test("refresh failures retain session recovery but cannot trigger query read retries", async () => {
+  const saved = memoryStorage()
+  let now = 0
+  let refreshes = 0
+  const manager = createSessionManager(
+    "https://api.example",
+    saved.storage,
+    (async (url) => {
+      if (String(url).endsWith("/api/Auth/sign-in"))
+        return json(pair("user-a", 200))
+      refreshes++
+      throw new Error("offline")
+    }) as typeof fetch,
+    () => now
+  )
+  await manager.signIn("user-a@example.com", "password")
+  now = 200_000
+  await assert.rejects(manager.request("/protected"), { kind: "session" })
+  assert.equal(manager.getSnapshot().status, "offline-local")
+  assert.equal(refreshes, 1)
+})
+
+test("account-bound transport rejects later requests from an outgoing multi-step flow", async () => {
+  const saved = memoryStorage()
+  let protectedCalls = 0
+  const manager = createSessionManager(
+    "https://api.example",
+    saved.storage,
+    (async (url) => {
+      if (String(url).endsWith("/api/Auth/sign-in"))
+        return json(pair("user-a", 300))
+      protectedCalls++
+      return json({ ok: true })
+    }) as typeof fetch,
+    () => 0
+  )
+  await manager.signIn("user-a@example.com", "password")
+  const outgoingRequest = manager.bindRequest()
+  assert.deepEqual(await outgoingRequest("/protected"), { ok: true })
+  await manager.signOut()
+  // Even signing back into the same identity must not revive an old flow.
+  await manager.signIn("user-a@example.com", "password")
+  await assert.rejects(
+    outgoingRequest("/protected", { method: "POST" }),
+    /active account changed/
+  )
+  assert.equal(protectedCalls, 1)
+  assert.deepEqual(await manager.bindRequest()("/protected"), { ok: true })
+  assert.equal(protectedCalls, 2)
+})

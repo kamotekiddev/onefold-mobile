@@ -1,4 +1,5 @@
-export type ApiErrorKind = "network" | "timeout" | "http" | "invalid-response"
+export type ApiErrorKind =
+  "network" | "timeout" | "cancelled" | "http" | "invalid-response" | "session"
 
 export class ApiError extends Error {
   constructor(
@@ -32,13 +33,18 @@ function problemFields(value: unknown): Record<string, string> {
   return fields
 }
 
-function problemMessage(value: unknown, status: number) {
+function problemMessage(value: unknown, status: number, path: string) {
   if (value && typeof value === "object") {
     const detail = (value as { detail?: unknown }).detail
     if (typeof detail === "string" && detail.trim()) return detail
   }
-  if (status === 401) return "Invalid email or password."
-  if (status === 409) return "Email is already taken."
+  if (path.startsWith("/api/Auth/sign-")) {
+    if (status === 401) return "Invalid email or password."
+    if (status === 409) return "Email is already taken."
+  }
+  if (status === 401)
+    return "Your session could not be authorized. Please sign in again."
+  if (status === 409) return "This request conflicts with an existing record."
   if (status >= 500) return "Server unavailable. Please try again."
   return "Unable to complete the request. Please try again."
 }
@@ -64,6 +70,7 @@ export function createApiClient(
       options.signal?.addEventListener("abort", onAbort, { once: true })
       if (options.signal?.aborted) controller.abort()
       try {
+        throwIfCancelled(options.signal)
         const response = await transport(`${root}${path}`, {
           method: options.method ?? "GET",
           headers: {
@@ -82,6 +89,7 @@ export function createApiClient(
           signal: controller.signal,
         })
         const raw = await response.text()
+        throwIfCancelled(options.signal)
         let value: unknown = null
         if (raw) {
           try {
@@ -97,7 +105,7 @@ export function createApiClient(
         if (!response.ok)
           throw new ApiError(
             "http",
-            problemMessage(value, response.status),
+            problemMessage(value, response.status, path),
             response.status,
             problemFields(value)
           )
@@ -114,7 +122,7 @@ export function createApiClient(
         if (error instanceof ApiError) throw error
         if (controller.signal.aborted)
           throw new ApiError(
-            "timeout",
+            options.signal?.aborted ? "cancelled" : "timeout",
             options.signal?.aborted
               ? "Request cancelled."
               : "Request timed out. Please retry."
@@ -129,4 +137,8 @@ export function createApiClient(
       }
     },
   }
+}
+
+export function throwIfCancelled(signal?: AbortSignal) {
+  if (signal?.aborted) throw new ApiError("cancelled", "Request cancelled.")
 }

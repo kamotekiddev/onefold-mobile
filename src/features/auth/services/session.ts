@@ -1,4 +1,9 @@
-import { ApiError, createApiClient, type ApiRequest } from "@/lib/api-client"
+import {
+  ApiError,
+  createApiClient,
+  throwIfCancelled,
+  type ApiRequest,
+} from "@/lib/api-client"
 
 export interface Identity {
   id: string
@@ -243,6 +248,22 @@ export function createSessionManager(
     })
     return refreshTask
   }
+  async function refreshForRequest(signal?: AbortSignal) {
+    throwIfCancelled(signal)
+    try {
+      await refresh()
+    } catch (error) {
+      throwIfCancelled(signal)
+      // Session owns refresh recovery; a query must not retry the refresh flow.
+      throw new ApiError(
+        "session",
+        error instanceof Error
+          ? error.message
+          : "Unable to refresh your session."
+      )
+    }
+    throwIfCancelled(signal)
+  }
   return {
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
@@ -333,12 +354,22 @@ export function createSessionManager(
       if (automatic) lastAutomaticRetry = now()
       await refresh()
     },
+    bindRequest(): (path: string, options?: ApiRequest) => Promise<unknown> {
+      const generation = accountGeneration
+      return (path, options) => {
+        if (accountGeneration !== generation)
+          return Promise.reject(new Error("The active account changed."))
+        return this.request(path, options)
+      }
+    },
     async request(path: string, options: ApiRequest = {}) {
+      throwIfCancelled(options.signal)
       let session = current()
       if (!session) throw new Error("Sign in to continue.")
       const generation = accountGeneration
       const identity = session.identity.id
-      if (session.expiresAt <= now() + 60_000) await refresh()
+      if (session.expiresAt <= now() + 60_000)
+        await refreshForRequest(options.signal)
       session = current()
       if (!session) throw new Error("Session expired. Please sign in again.")
       if (accountGeneration !== generation || session.identity.id !== identity)
@@ -359,7 +390,9 @@ export function createSessionManager(
         if (!(error instanceof ApiError) || error.status !== 401) throw error
         if (accountGeneration !== generation)
           throw new Error("The active account changed.")
-        if (current()?.tokens.accessToken === sentToken) await refresh()
+        throwIfCancelled(options.signal)
+        if (current()?.tokens.accessToken === sentToken)
+          await refreshForRequest(options.signal)
         session = current()
         if (!session) throw new Error("Session expired. Please sign in again.")
         if (

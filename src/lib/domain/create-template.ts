@@ -1,5 +1,5 @@
 import type { AuthenticatedRequest, DataStore } from "../services"
-import { mapTemplate, ROUTINE_CACHE_TTL_MS } from "./routine-templates"
+import { mapTemplate } from "./routine-templates"
 import { ServiceError, isBackendId, validateRoutine } from "./validation"
 import type { RoutineInput } from "../../types/domain"
 
@@ -9,7 +9,11 @@ export function createTemplateCreator(
   now: () => number = Date.now
 ) {
   const pendingIds = new Map<string, string>()
-  return async (input: RoutineInput) => {
+  const tasks = new Map<
+    string,
+    Promise<ReturnType<typeof mapTemplate>["routine"]>
+  >()
+  const create = async (input: RoutineInput) => {
     const data = await store.read()
     validateRoutine(input, data.exercises)
     if (input.entries.some((entry) => !isBackendId(entry.exerciseId)))
@@ -92,11 +96,12 @@ export function createTemplateCreator(
       pendingIds.set(key, templateId)
     }
 
-    // Expire the collection immediately so its previous 24-hour TTL cannot hide the new routine.
+    // Mark the snapshot stale without making its original fetch time look newer.
     await store.mutate((draft) => {
       draft.routineCache = {
         source: "backend",
-        fetchedAt: now() - ROUTINE_CACHE_TTL_MS,
+        fetchedAt: draft.routineCache?.fetchedAt ?? 0,
+        invalidated: true,
       }
     })
     const detail = await request(
@@ -134,5 +139,13 @@ export function createTemplateCreator(
     })
     pendingIds.delete(key)
     return mapped.routine
+  }
+  return (input: RoutineInput) => {
+    const key = JSON.stringify(input)
+    const prior = tasks.get(key)
+    if (prior) return prior
+    const task = create(input).finally(() => tasks.delete(key))
+    tasks.set(key, task)
+    return task
   }
 }

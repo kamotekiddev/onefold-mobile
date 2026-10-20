@@ -17,7 +17,7 @@ The user requested an Obsidian project memory so future assistant sessions can r
 - Native API authentication with secure session persistence and account-scoped local training data.
 - Offline-local auth state now shows a dismissible floating retry notice above the bottom navigation; dismissal lasts for the current offline episode and retry behavior is unchanged.
 - Routine scheduling, exercise selection/reordering, guided workouts, full-screen rest, completion summaries, history, and unit preferences.
-- Backend workout templates are fetched as authenticated routines and cached per account for 24 hours; the production account seed no longer creates a default routine.
+- Backend workout templates now use account-scoped TanStack Query (five-minute stale time) with durable SQLite offline snapshots; the production account seed no longer creates a default routine.
 - Routine creation is available through the toolbar or the empty state's Create routine action; the toolbar action is hidden while the empty state is shown. Saving creates a backend template and immediately expires the list cache. The picker can create weighted/bodyweight exercises through the API, enabling first-routine creation on empty accounts.
 - Existing runtime service names still include “mock” and “demo”; these do not imply that native authentication is mocked.
 - Obsidian vault settings in `.obsidian/` are now tracked with the repository.
@@ -63,6 +63,10 @@ These are observed gaps or questions, not an approved backlog:
 - `.obsidian/` settings were committed in `d5ed074` and pushed on `codex/commit-obsidian-settings`; PR #12 is open against `main`.
 
 ## Next-session handoff
+
+Latest implementation (2026-10-20): [[Data Fetching Handoff]] has been executed on `codex/data-fetching-modernization`, based on refreshed `origin/main` at `4b19e8a`. See [[#Data fetching modernization — 2026-10-20]] for verification and remaining device acceptance. The user subsequently requested commit/push/PR delivery through the commit-push-pr skill; unrelated Obsidian settings edits are excluded from that delivery.
+
+The original handoff was research only; its checks are historical. The implementation verification is recorded below.
 
 Read [[Start Here]] and check current changes before starting new work. Update this note after meaningful work with changed areas, evidence, validation, and concrete unfinished items. Preserve older decisions with their status rather than treating every implementation detail as a permanent choice.
 
@@ -115,3 +119,20 @@ Read [[Start Here]] and check current changes before starting new work. Update t
 
 - On `codex/exercise-picker-empty-state`, created from refreshed `origin/main` at `5b6ec17`, moved Add new exercise from the picker header into its successful no-results state. A follow-up request removed Clear filters and its unused styles; copy now offers another search or creation. Matching results, loading, and errors hide the creation action; the existing pop-up and selection/refresh callback are preserved. See [[Architecture#Exercise creation presentation]] and [[Decisions#D013 — Align inline exercise creation with the routine builder]].
 - `npx expo lint`, `npx tsc --noEmit`, and `git diff --check`: passed. No new tests for this presentation-only relocation. Existing tracked Obsidian settings edits were preserved; on-device visual review remains pending due to the previously observed Accessibility permission limit.
+
+## Data fetching modernization — 2026-10-20
+
+- Continued the same handoff task on `codex/data-fetching-modernization`. Refreshed `origin/main`, confirmed no branch divergence or existing closed/merged PR, and verified the branch before edits. Preserved unrelated `.obsidian/` edits, including graph changes observed during the session; no commits/pushes were made.
+- Added JavaScript-only `@tanstack/react-query` v5.104.5 through Expo's installer. Each account boundary owns a stable client, cancels/clears outgoing queries, and retains account-scoped SQLite workout inputs. Existing auth AppState/network subscriptions now also drive Query foreground/reconnect behavior, with an initial connectivity check and cleanup.
+- Migrated routine list/details/editor reads and creation to feature query/mutation hooks. Query owns sharing/freshness; removed the service's TTL/fetch-task/fallback suppression. Five-minute stale time, at most two transient read retries with backoff, original hydration timestamps, persist-before-success, bounded four-detail concurrency, pull-to-refresh, and visible cached-plus-error/offline states are implemented.
+- Cancellation propagates through services/transport and is distinct from timeout. Session refresh recovery retains its existing shared promise/401 retry and exposes a non-query-retryable error. Provider transports bind the account generation, rejecting later steps of outgoing creation/read flows before sending, including after same-account re-login. Read revision fences and mutation cancellation protect creation/reset from older responses.
+- Creation rejects offline submissions immediately and never pauses/replays POSTs. Routine pending IDs and exercise remote results survive local/detail failures for explicit retry within the session; identical concurrent submissions share work. Exercise filtering/history are reactive local reads; production artificial delays are removed. See [[Architecture]] and [[Decisions#D014 — Query owns remote fetching; SQLite retains offline workout inputs]].
+- Verification: `npx expo lint`, `npx tsc --noEmit`, `npm test` (**64 passed**), iOS Metro production export, and `git diff --check` passed. Tests cover shared reads, bounded retries, cancellation, auth-refresh cancellation, account cache disposal, original hydration timestamps, cached/empty/offline states, local workout start while offline, creation/read races, and remote-success/storage-failure recovery.
+- Expo Doctor: **19/21 checks passed**. Existing native tooling incompatibility and six existing Expo patch-version mismatches remain; no unrelated SDK/native-tooling upgrades were performed. TanStack Query introduced no native module or native configuration change.
+- Remaining acceptance: exercise actual iOS/Android airplane-mode restart/workout flow, foreground/reconnect refresh, account switching, cached-error UI, and offline creation on devices. The automated tests and successful iOS bundle do not establish those native/visual results. Authenticated writes against a running backend were not exercised. Partial-success recovery remains in-memory and cannot guarantee duplicate prevention after process restart or an ambiguous POST response.
+
+### Delivery verification — 2026-10-20
+
+- User requested commit, push, and PR for the modernization. Confirmed the same-task branch has no existing PR and matches refreshed `origin/main` before delivery.
+- Re-ran `npx expo lint`, `npx tsc --noEmit`, and `npm test` (64 passed); all passed. The successful iOS production export and known Expo Doctor findings from implementation remain the latest checks for those areas.
+- Delivery includes modernization source/tests, dependency manifests, conventions, and context notes. Unrelated `.obsidian/app.json`, `.obsidian/graph.json`, and `.obsidian/workspace.json` changes remain unstaged. Device acceptance and the previously recorded tooling/Expo patch limits remain unfinished.

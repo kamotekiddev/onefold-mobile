@@ -1,6 +1,6 @@
 import type { AuthenticatedRequest, DataStore, Services } from "../services"
 import { createTemplateCreator } from "./create-template"
-import { createExercise } from "./create-exercise"
+import { createExerciseCreator } from "./create-exercise"
 import type {
   AppData,
   Routine,
@@ -76,16 +76,25 @@ export function createServices(
 ): Services {
   const now = options.now ?? Date.now
   let failOperation: string | null = null
+  let routineRevision = 0
   const remoteRoutines = options.request
-    ? createRemoteRoutineLoader(store, options.request, now)
+    ? createRemoteRoutineLoader(
+        store,
+        options.request,
+        now,
+        () => routineRevision
+      )
+    : null
+  const createRemoteExercise = options.request
+    ? createExerciseCreator(store, options.request)
     : null
   const createRemoteTemplate = options.request
     ? createTemplateCreator(store, options.request, now)
     : null
   async function before(operation: string) {
-    if ((options.delayMs ?? 180) > 0)
+    if ((options.delayMs ?? (options.request ? 0 : 180)) > 0)
       await new Promise((resolve) =>
-        setTimeout(resolve, options.delayMs ?? 180)
+        setTimeout(resolve, options.delayMs ?? (options.request ? 0 : 180))
       )
     if (failOperation === "*" || failOperation === operation) {
       failOperation = null
@@ -98,8 +107,7 @@ export function createServices(
   const services: Services = {
     exercises: {
       async create(input) {
-        if (options.request)
-          return createExercise(store, options.request, input)
+        if (createRemoteExercise) return createRemoteExercise(input)
         return store.mutate((data) => {
           const exercise = {
             ...input,
@@ -135,13 +143,13 @@ export function createServices(
     },
     routines: {
       readOnly: !!options.request,
-      async list() {
-        if (remoteRoutines) return remoteRoutines.list()
+      async list(readOptions) {
+        if (remoteRoutines) return remoteRoutines.list(readOptions)
         await before("routines.list")
         return (await store.read()).routines
       },
-      async getById(id) {
-        if (remoteRoutines) return remoteRoutines.getById(id)
+      async getById(id, readOptions) {
+        if (remoteRoutines) return remoteRoutines.getById(id, readOptions)
         await before("routines.getById")
         return required(
           (await store.read()).routines.find((routine) => routine.id === id),
@@ -149,7 +157,14 @@ export function createServices(
         )
       },
       async create(input) {
-        if (createRemoteTemplate) return createRemoteTemplate(input)
+        if (createRemoteTemplate) {
+          routineRevision++
+          try {
+            return await createRemoteTemplate(input)
+          } finally {
+            routineRevision++
+          }
+        }
         await before("routines.create")
         return store.mutate((data) => {
           validateRoutine(input, data.exercises)
@@ -573,6 +588,7 @@ export function createServices(
     },
     demo: {
       async reset() {
+        routineRevision++
         await before("demo.reset")
         await store.mutate((data) => {
           Object.assign(

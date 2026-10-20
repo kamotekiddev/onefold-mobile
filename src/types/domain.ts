@@ -97,6 +97,7 @@ export interface AppData {
 export interface RoutineCache {
   fetchedAt: number
   source: "backend"
+  invalidated?: boolean
 }
 export interface StoreSnapshot {
   status: "loading" | "ready" | "error"

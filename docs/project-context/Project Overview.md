@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-19
+updated: 2026-10-20
 tags: [onefold, product]
 ---
 
@@ -9,21 +9,21 @@ Onefold is a mobile-first strength-training app for creating routines, following
 
 ## Implemented capabilities
 
-| Area           | Current behavior                                                                                                                        |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Authentication | Email registration, sign-in, saved sessions, refresh, and local sign-out through the Onefold authentication integration on iOS/Android. |
-| Routines       | Create backend templates with ordered exercises and weekly days; read definitions through a 24-hour cache. Editing, duplication, and deletion are currently unavailable for remote routines. |
-| Exercises      | Add weighted/bodyweight exercises through the API; search known exercises returned with templates or created on this device. |
-| Workouts       | Start or resume one active workout, follow exercises and sets in sequence, log reps/weight, add sets, and use rest timers.              |
-| Progression    | Manual, weight, or reps modes; completed sessions generate future targets.                                                              |
-| History        | Completed workout records retain exercise and prescription snapshots.                                                                   |
-| Settings       | Kilogram/pound display preference, account sign-out, and confirmed reset of the current account's local training data.                  |
+| Area           | Current behavior                                                                                                                                                                                                                   |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authentication | Email registration, sign-in, saved sessions, refresh, and local sign-out through the Onefold authentication integration on iOS/Android.                                                                                            |
+| Routines       | Create backend templates with ordered exercises and weekly days; read definitions through account-scoped queries with durable offline snapshots. Editing, duplication, and deletion are currently unavailable for remote routines. |
+| Exercises      | Add weighted/bodyweight exercises through the API; search known exercises returned with templates or created on this device.                                                                                                       |
+| Workouts       | Start or resume one active workout, follow exercises and sets in sequence, log reps/weight, add sets, and use rest timers.                                                                                                         |
+| Progression    | Manual, weight, or reps modes; completed sessions generate future targets.                                                                                                                                                         |
+| History        | Completed workout records retain exercise and prescription snapshots.                                                                                                                                                              |
+| Settings       | Kilogram/pound display preference, account sign-out, and confirmed reset of the current account's local training data.                                                                                                             |
 
 New accounts fetch their routines and exercise catalog from backend workout templates, use kilogram units, and start with no workout history.
 
 ## Product boundary
 
-Authentication and routine definitions are remote; workout execution data is device-local and separated by API base URL and account ID. Routine responses are cached for 24 hours, while signing in does **not** sync workout history across devices. The training service implementation is still named `mock-services.ts`, but it is the runtime implementation used with durable native storage.
+Authentication and routine definitions are remote; workout execution data is device-local and separated by API base URL and account ID. Routine queries become stale after five minutes and refresh on foreground/reconnect; the last durable snapshot stays available offline. Signing in does **not** sync workout history across devices. The training service implementation is still named `mock-services.ts`, but it is the runtime implementation used with durable native storage.
 
 Web is configured as a build target, but the current auth provider presents an unsupported screen there. Do not describe the full signed-in experience as available on web.
 

@@ -18,6 +18,7 @@ import { MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useApp } from "@/lib/app-provider"
 import type { Weekday } from "@/types/domain"
 
+import { useRoutine, useCreateRoutine } from "../hooks/queries"
 import { useRoutineDraft } from "../hooks/draft"
 import { confirmAction, errorText, prescriptionText } from "../utils"
 
@@ -37,7 +38,11 @@ export function RoutineEditorScreen() {
   const p = usePalette()
   const { draft, setDraft } = useRoutineDraft()
   const navigation = useNavigation()
-  const [loading, setLoading] = useState(true)
+  const query = useRoutine(id, !services.routines.readOnly)
+  const creation = useCreateRoutine()
+  const initialized = useRef<string | null>(null)
+  const draftKey = id ?? "new"
+  const loading = id ? query.isPending && !services.routines.readOnly : !draft
   const [busy, setBusy] = useState(false)
   const saving = useRef(false)
   const [error, setError] = useState("")
@@ -45,41 +50,23 @@ export function RoutineEditorScreen() {
   const [allowLeave, setAllowLeave] = useState(false)
   const unit = state.data?.preferences.weightUnit ?? "kg"
   useEffect(() => {
+    if (initialized.current === draftKey || (id && !query.data)) return
     if (id && services.routines.readOnly) return
-    let alive = true
-    const load = async () => {
-      const value = await (id
-        ? services.routines.getById(id)
-        : Promise.resolve({ name: "", entries: [], scheduledDays: [] }))
-      if (alive)
-        setDraft({
-          routineId: id,
-          value: {
-            name: value.name,
-            entries: value.entries,
-            scheduledDays: value.scheduledDays ?? [],
-          },
-          baseline: JSON.stringify({
-            name: value.name,
-            entries: value.entries,
-            scheduledDays: value.scheduledDays ?? [],
-          }),
-        })
+    const value = query.data ?? { name: "", entries: [], scheduledDays: [] }
+    initialized.current = draftKey
+    const input = {
+      name: value.name,
+      entries: value.entries,
+      scheduledDays: value.scheduledDays ?? [],
     }
-    load()
-      .catch((e) => {
-        if (alive) setError(errorText(e))
-      })
-      .finally(() => {
-        if (alive) setLoading(false)
-      })
-    return () => {
-      alive = false
-    }
-  }, [id, services, setDraft])
+    setDraft({ routineId: id, value: input, baseline: JSON.stringify(input) })
+  }, [id, draftKey, query.data, services.routines.readOnly, setDraft])
   const dirty = !!draft && JSON.stringify(draft.value) !== draft.baseline
   usePreventRemove(
-    dirty && !allowLeave && !(id && services.routines.readOnly),
+    dirty &&
+      draft?.routineId === id &&
+      !allowLeave &&
+      !(id && services.routines.readOnly),
     ({ data }) => {
       confirmAction(
         "Discard changes?",
@@ -119,7 +106,7 @@ export function RoutineEditorScreen() {
         ? await services.routines.update(draft.routineId, value, {
             confirmTargetReset,
           })
-        : await services.routines.create(value)
+        : await creation.mutateAsync(value)
       setAllowLeave(true)
       setDraft(null)
       setTimeout(
@@ -153,13 +140,18 @@ export function RoutineEditorScreen() {
         <ActivityIndicator color={p.accent} />
       </Screen>
     )
-  if (!draft)
+  if (!draft || draft.routineId !== id)
     return (
       <Screen
         title="Routine editor"
         safeAreaEdges={["top", "left", "right", "bottom"]}
       >
-        <ErrorMessage message={error || "Unable to load routine."} />
+        <ErrorMessage
+          message={
+            error ||
+            (query.error ? errorText(query.error) : "Unable to load routine.")
+          }
+        />
         <Button label="Back" onPress={() => router.back()} />
       </Screen>
     )
