@@ -1,8 +1,9 @@
 import { router } from "expo-router"
 import { SymbolView } from "expo-symbols"
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import {
   FlatList,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,22 +18,87 @@ import { AppText, Button, EmptyState, Screen } from "@/components/ui"
 import { MaxContentWidth, Radii, usePalette } from "@/constants/theme"
 import { useRoutineDraft } from "@/features/routines"
 import { useApp } from "@/lib/app-provider"
-import type { RoutineEntry } from "@/types/domain"
-import { useExercises } from "../hooks/queries"
-import { CreateExerciseForm } from "../components/create-exercise-form"
+import type { Exercise, RoutineEntry } from "@/types/domain"
+import { useExercises, useExerciseSearch } from "../hooks/queries"
+import {
+  CreateExerciseForm,
+  CreateExerciseTrigger,
+} from "../components/create-exercise-form"
 
 let entryCounter = 0
 export function ExercisePickerScreen() {
   const { state, services } = useApp()
   const { draft, setDraft } = useRoutineDraft()
   const p = usePalette()
+  const [creationOpen, setCreationOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [muscleGroup, setMuscleGroup] = useState("")
   const [selected, setSelected] = useState<string[]>([])
-  const exercises = useExercises({
+  const localExercises = useExercises({
     search,
     muscleGroup: muscleGroup || undefined,
   })
+  const searchResult = useExerciseSearch(search, !!draft)
+  const exercises = searchResult.remote ? searchResult.items : localExercises
+  const selectedIds = useMemo(() => new Set(selected), [selected])
+  const toggleSelection = useCallback((id: string) => {
+    setSelected((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id]
+    )
+  }, [])
+  const renderExercise = useCallback(
+    ({ item }: { item: Exercise }) => {
+      const isSelected = selectedIds.has(item.id)
+      return (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel={item.name}
+          accessibilityState={{ checked: isSelected }}
+          onPress={() => toggleSelection(item.id)}
+          style={({ pressed }) => [
+            styles.exerciseRow,
+            {
+              backgroundColor: isSelected
+                ? p.accentSoft
+                : pressed
+                  ? p.backgroundElement
+                  : p.surface,
+              borderColor: isSelected ? p.accent : p.border,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.checkbox,
+              {
+                backgroundColor: isSelected ? p.accent : p.surface,
+                borderColor: isSelected ? p.accent : p.border,
+              },
+            ]}
+          >
+            {isSelected ? (
+              <AppText
+                variant="caption"
+                color={p.accentText}
+                style={styles.checkmark}
+              >
+                ✓
+              </AppText>
+            ) : null}
+          </View>
+          <View style={styles.exerciseCopy}>
+            <AppText style={styles.exerciseName}>{item.name}</AppText>
+            <AppText variant="caption" color={p.textSecondary}>
+              {item.primaryMuscleGroup} · {item.equipment}
+            </AppText>
+          </View>
+        </Pressable>
+      )
+    },
+    [p, selectedIds, toggleSelection]
+  )
   if (!draft)
     return (
       <Screen
@@ -186,21 +252,56 @@ export function ExercisePickerScreen() {
                   </View>
                 </View>
 
-                {chips(
-                  "Muscle group",
-                  [
-                    ...new Set(catalog.map((item) => item.primaryMuscleGroup)),
-                  ].sort(),
-                  muscleGroup,
-                  setMuscleGroup
-                )}
+                {!searchResult.remote &&
+                  chips(
+                    "Muscle group",
+                    [
+                      ...new Set(
+                        catalog.map((item) => item.primaryMuscleGroup)
+                      ),
+                    ].sort(),
+                    muscleGroup,
+                    setMuscleGroup
+                  )}
                 <View style={styles.resultsHeader}>
                   <AppText variant="heading">Exercises</AppText>
                   <AppText variant="caption" color={p.textSecondary}>
-                    {exercises.length} result
-                    {exercises.length === 1 ? "" : "s"}
+                    {exercises.length}
+                    {searchResult.totalCount === undefined
+                      ? ""
+                      : ` of ${searchResult.totalCount}`}{" "}
+                    result
+                    {(searchResult.totalCount ?? exercises.length) === 1
+                      ? ""
+                      : "s"}
                   </AppText>
                 </View>
+                {searchResult.offline ? (
+                  <AppText color={p.textSecondary}>
+                    You’re offline. Showing known exercises; connect to search
+                    online.
+                  </AppText>
+                ) : null}
+                {searchResult.error && !searchResult.nextPageError ? (
+                  <View style={styles.stateCard}>
+                    <AppText color={p.danger}>
+                      {searchResult.error instanceof Error
+                        ? searchResult.error.message
+                        : "Could not search exercises."}
+                    </AppText>
+                    <Button
+                      label="Retry search"
+                      variant="secondary"
+                      loading={searchResult.refreshing}
+                      onPress={searchResult.retry}
+                    />
+                  </View>
+                ) : null}
+                {searchResult.refreshing && exercises.length ? (
+                  <AppText color={p.textSecondary}>
+                    Refreshing exercises…
+                  </AppText>
+                ) : null}
               </View>
             }
             ListEmptyComponent={
@@ -210,74 +311,77 @@ export function ExercisePickerScreen() {
                   { backgroundColor: p.surface, borderColor: p.border },
                 ]}
               >
-                <AppText variant="heading">No matching exercises</AppText>
-                <AppText variant="caption" color={p.textSecondary}>
-                  Try a different name or create a new exercise for your
-                  routine.
-                </AppText>
-                <CreateExerciseForm
-                  onCreated={(exercise) => {
-                    setSelected((current) => [...current, exercise.id])
-                    setSearch("")
-                    setMuscleGroup("")
-                  }}
-                />
+                {searchResult.loading ? (
+                  <View
+                    accessibilityRole="progressbar"
+                    accessibilityLabel="Searching exercises"
+                    style={styles.loadingState}
+                  >
+                    <ActivityIndicator color={p.accent} />
+                    <AppText>Searching exercises…</AppText>
+                  </View>
+                ) : searchResult.invalid ? (
+                  <AppText color={p.danger}>
+                    Enter an exercise name of up to 255 characters.
+                  </AppText>
+                ) : searchResult.error ? (
+                  <AppText>
+                    Search is unavailable. Retry to find exercises.
+                  </AppText>
+                ) : (
+                  <>
+                    <AppText variant="heading">
+                      {searchResult.offline
+                        ? "No known matches"
+                        : "No matching exercises"}
+                    </AppText>
+                    <AppText variant="caption" color={p.textSecondary}>
+                      {searchResult.offline
+                        ? "Connect to the internet to search more exercises."
+                        : "Try a different name or create a new exercise for your routine."}
+                    </AppText>
+                  </>
+                )}
+                {(searchResult.remote
+                  ? searchResult.canCreate
+                  : !exercises.length) && !searchResult.invalid ? (
+                  <CreateExerciseTrigger
+                    open={creationOpen}
+                    onPress={() => setCreationOpen(true)}
+                  />
+                ) : null}
               </View>
             }
-            renderItem={({ item }) => {
-              const isSelected = selected.includes(item.id)
-              return (
-                <Pressable
-                  accessibilityRole="checkbox"
-                  accessibilityLabel={item.name}
-                  accessibilityState={{ checked: isSelected }}
-                  onPress={() =>
-                    setSelected((current) =>
-                      current.includes(item.id)
-                        ? current.filter((id) => id !== item.id)
-                        : [...current, item.id]
-                    )
-                  }
-                  style={({ pressed }) => [
-                    styles.exerciseRow,
-                    {
-                      backgroundColor: isSelected
-                        ? p.accentSoft
-                        : pressed
-                          ? p.backgroundElement
-                          : p.surface,
-                      borderColor: isSelected ? p.accent : p.border,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      {
-                        backgroundColor: isSelected ? p.accent : p.surface,
-                        borderColor: isSelected ? p.accent : p.border,
-                      },
-                    ]}
-                  >
-                    {isSelected ? (
-                      <AppText
-                        variant="caption"
-                        color={p.accentText}
-                        style={styles.checkmark}
-                      >
-                        ✓
-                      </AppText>
-                    ) : null}
-                  </View>
-                  <View style={styles.exerciseCopy}>
-                    <AppText style={styles.exerciseName}>{item.name}</AppText>
-                    <AppText variant="caption" color={p.textSecondary}>
-                      {item.primaryMuscleGroup} · {item.equipment}
+            ListFooterComponent={
+              searchResult.remote &&
+              !searchResult.loading &&
+              !searchResult.offline &&
+              search.trim() &&
+              !searchResult.invalid ? (
+                <View style={styles.pagination}>
+                  {searchResult.nextPageError ? (
+                    <AppText color={p.danger}>
+                      Could not load more exercises. Your selections are
+                      preserved.
                     </AppText>
-                  </View>
-                </Pressable>
-              )
-            }}
+                  ) : null}
+                  {searchResult.hasNextPage ? (
+                    <Button
+                      label={
+                        searchResult.nextPageError
+                          ? "Retry loading more"
+                          : "Load more"
+                      }
+                      variant="secondary"
+                      loading={searchResult.fetchingNextPage}
+                      disabled={searchResult.refreshing}
+                      onPress={searchResult.loadMore}
+                    />
+                  ) : null}
+                </View>
+              ) : null
+            }
+            renderItem={renderExercise}
           />
         </SafeAreaView>
 
@@ -343,6 +447,19 @@ export function ExercisePickerScreen() {
             </Pressable>
           </View>
         </SafeAreaView>
+        <CreateExerciseForm
+          open={creationOpen}
+          onClose={() => setCreationOpen(false)}
+          onCreated={(exercise) => {
+            setSelected((current) =>
+              current.includes(exercise.id)
+                ? current
+                : [...current, exercise.id]
+            )
+            setSearch("")
+            setMuscleGroup("")
+          }}
+        />
       </KeyboardAvoidingView>
     </View>
   )
@@ -409,6 +526,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   loadingState: { alignItems: "center", gap: 8, paddingVertical: 32 },
+  pagination: { gap: 12, paddingVertical: 12 },
   stateCard: {
     borderRadius: Radii.card,
     borderWidth: 1,

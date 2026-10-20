@@ -1,2 +1,7 @@
 export { ExercisePickerScreen } from "./screens/picker"
-export { useExercises, useCreateExercise } from "./hooks/queries"
+export {
+  useExercises,
+  useExerciseSearch,
+  useCreateExercise,
+} from "./hooks/queries"
+export { exerciseKeys } from "./services/queries"

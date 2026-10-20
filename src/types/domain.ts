@@ -109,6 +109,17 @@ export interface ExerciseQuery {
   muscleGroup?: string
   equipment?: string
 }
+export interface ExerciseSearchInput {
+  name: string
+  page?: number
+  pageSize?: number
+}
+export interface ExerciseSearchPage {
+  items: Exercise[]
+  page: number
+  pageSize: number
+  totalCount: number
+}
 export interface SetUpdate {
   actualReps?: number | null
   actualWeight?: number | null

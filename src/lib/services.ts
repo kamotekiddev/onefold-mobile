@@ -2,6 +2,8 @@ import type {
   AppData,
   Exercise,
   ExerciseQuery,
+  ExerciseSearchInput,
+  ExerciseSearchPage,
   Routine,
   RoutineInput,
   SetUpdate,
@@ -18,6 +20,10 @@ export type AuthenticatedRequest = (
 export interface ExerciseService {
   create(input: Pick<Exercise, "name" | "trackingType">): Promise<Exercise>
   search(query?: ExerciseQuery): Promise<Exercise[]>
+  searchPage(
+    query: ExerciseSearchInput,
+    options?: { signal?: AbortSignal }
+  ): Promise<ExerciseSearchPage>
   getById(id: string): Promise<Exercise>
 }
 export interface RoutineService {

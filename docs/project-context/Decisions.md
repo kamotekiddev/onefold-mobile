@@ -115,7 +115,7 @@ Show New Routine on the list and Create routine in the empty state. Save with au
 
 **Presentation refinement (2026-10-20, user-requested):** Hide the toolbar's New Routine action when the loaded empty state shows Create routine, superseding the initial duplicate-action presentation. Keep the toolbar action available for populated, loading, and error states. Evidence: [routine list](../../src/features/routines/screens/routines.tsx).
 
-The current API provides exercise creation and lookup by ID but no exercise listing. The picker therefore offers Add new exercise using `POST /api/workout/Exercise` and retains known server exercises locally, including unused exercises created while drafting. Fresh accounts and account resets use no seeded exercises or routines. The remote picker excludes legacy seed IDs.
+The original API inspection provided exercise creation and lookup by ID but no exercise listing. **D015 supersedes this search limitation:** the picker now integrates the name-search endpoint. Add new exercise still uses `POST /api/workout/Exercise`, retaining known server exercises locally, including unused exercises created while drafting. Fresh accounts and account resets use no seeded exercises or routines. The remote picker excludes legacy seed IDs.
 
 **Contract limits:** Remote creation uses one target rep count, no starting load, and manual or weight progression. Template-level rest defaults to two minutes. The detail DTO still omits per-exercise rest, weight increments, and exercise type; reads keep their documented defaults, while locally known exercise types are retained. Editing, deletion, and duplication remain unavailable.
 
@@ -154,3 +154,15 @@ Initial policy: five-minute stale time, stale foreground/reconnect/manual refres
 **Rationale:** Remove duplicate TTL/request state while preserving offline workout data, authentication's shared refresh, and creation recovery. Template list summaries lack prescriptions, so the shared collection currently fetches details with concurrency capped at four; lazy details/batching would require a further data/contract change. No generic persisted query cache or new native dependency is needed.
 
 **Evidence:** [Query client](../../src/lib/query-client.ts), [routine options](../../src/features/routines/services/queries.ts), [routine adapter](../../src/lib/domain/routine-templates.ts), creation adapters/tests, and [[Architecture]]. Native device lifecycle/airplane-mode acceptance remains pending; automated tests cover the underlying behavior.
+
+## D015 — Search the backend exercise catalog by name
+
+**Status:** Implemented on 2026-10-20 following the user's approved implementation plan. Supersedes D010's local-only search limitation; extends D014's Query ownership to remote exercise searches.
+
+Use authenticated `GET /api/workout/Exercise/search` for nonblank names, with 300 ms debounce, 20-item pages, explicit Load more, account-scoped Query caching, cancellation, and bounded read retries. Blank input and offline fallback use known exercises. Persist discovered exercises before query success; retain selected IDs across terms/pages. Do not hydrate complete search pages or totals from the partial durable catalog.
+
+**User-selected tradeoff:** Preserve known metadata; otherwise default to Weighted, General, and Unknown equipment because search returns only ID/name. Hide muscle-group filters in remote-backed pickers. No backend contract change or new dependency. These defaults cannot establish the true tracking type of a newly discovered bodyweight exercise.
+
+**Creation:** Keep the trigger in confirmed no-results (including blank/local empty), hide it during pending/error/offline-only misses, and keep the modal mounted independently of result changes. Creation invalidates searches; reset removes their in-memory cache and fences older responses. Existing creation recovery and no-offline-POST rules remain.
+
+**Evidence:** Live OpenAPI and adjacent backend validator/repository inspected on 2026-10-20; backend requires a trimmed name of 1–255 characters despite OpenAPI marking Name optional. [Search adapter/tests](../../src/lib/domain/exercise-search.ts), [query options/tests](../../src/features/exercises/services/queries.ts), [picker](../../src/features/exercises/screens/picker.tsx). Local HTTP simulation exercises the real transport; native visual and authenticated backend acceptance remain pending.
