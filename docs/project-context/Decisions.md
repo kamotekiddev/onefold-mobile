@@ -137,6 +137,8 @@ Use one app-level recovery component for training-data and session-loading error
 
 Open creation in a centered, safe-area-aware and keyboard-avoiding Modal above the picker, using existing theme tokens and the shared Card/text/error primitives. Present Weighted and Bodyweight as explicit, descriptive radio choices instead of a switch-to button. Use 48-point minimum controls, wrapping actions, and a visible saving state with editing and dismissal disabled during the request.
 
+**Visibility refinement (2026-10-20, user-requested):** Offer Add new exercise only when the picker successfully returns zero results, within the no-results message. This supersedes the always-visible header placement; matching results, loading, and errors hide creation. A follow-up request removes Clear filters from this state and its copy. The pop-up and automatic selection after creation remain unchanged.
+
 **Rationale:** Make the current tracking choice visible and match the surrounding routine-builder controls while retaining the existing backend creation and selection flow.
 
 **Source:** [Exercise creation form](../../src/features/exercises/components/create-exercise-form.tsx), [[Architecture#Exercise creation presentation]].

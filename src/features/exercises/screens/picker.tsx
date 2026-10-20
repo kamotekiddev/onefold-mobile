@@ -228,14 +228,6 @@ export function ExercisePickerScreen() {
                   muscleGroup,
                   setMuscleGroup
                 )}
-                <CreateExerciseForm
-                  onCreated={(exercise) => {
-                    setSelected((current) => [...current, exercise.id])
-                    setSearch("")
-                    setMuscleGroup("")
-                    setRetry((value) => value + 1)
-                  }}
-                />
                 <View style={styles.resultsHeader}>
                   <AppText variant="heading">Exercises</AppText>
                   {!loading && !error ? (
@@ -280,27 +272,17 @@ export function ExercisePickerScreen() {
                 >
                   <AppText variant="heading">No matching exercises</AppText>
                   <AppText variant="caption" color={p.textSecondary}>
-                    Try a different name or clear the filters.
+                    Try a different name or create a new exercise for your
+                    routine.
                   </AppText>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => {
+                  <CreateExerciseForm
+                    onCreated={(exercise) => {
+                      setSelected((current) => [...current, exercise.id])
                       setSearch("")
                       setMuscleGroup("")
+                      setRetry((value) => value + 1)
                     }}
-                    style={({ pressed }) => [
-                      styles.clearAction,
-                      {
-                        backgroundColor: pressed
-                          ? p.backgroundSelected
-                          : p.backgroundElement,
-                      },
-                    ]}
-                  >
-                    <AppText style={styles.clearActionLabel}>
-                      Clear filters
-                    </AppText>
-                  </Pressable>
+                  />
                 </View>
               )
             }
@@ -495,14 +477,6 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
   },
-  clearAction: {
-    alignItems: "center",
-    borderRadius: Radii.control,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: 14,
-  },
-  clearActionLabel: { fontWeight: "600" },
   exerciseRow: {
     alignItems: "center",
     borderRadius: Radii.control,
